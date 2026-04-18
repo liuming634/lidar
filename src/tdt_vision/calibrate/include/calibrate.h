@@ -13,7 +13,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include "cv_bridge/cv_bridge.hpp"
+#include "cv_bridge/cv_bridge.h"
 #include "opencv2/opencv.hpp"
 #include "radar_utils.h"
 #include "tf2_msgs/msg/tf_message.hpp"

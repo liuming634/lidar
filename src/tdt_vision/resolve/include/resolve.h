@@ -8,7 +8,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_interface/msg/match_info.hpp>
-#include "cv_bridge/cv_bridge.hpp"
+#include "cv_bridge/cv_bridge.h"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "opencv2/opencv.hpp"
 #include "pcl/point_types.h"

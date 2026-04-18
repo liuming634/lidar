@@ -1,5 +1,5 @@
 #include <fstream>
-#include <cv_bridge/cv_bridge.hpp>
+#include <cv_bridge/cv_bridge.h>
 #include <opencv4/opencv2/opencv.hpp>
 #include <rclcpp/logger.hpp>
 #include <rclcpp/node.hpp>
