@@ -16,41 +16,12 @@ __pycache__/
 *.bag
 *.bag.active
 
-# 模型文件
-model/ONNX/*.onnx
-model/TRT/*.trt
-*.pt
-*.pth
-*.ckpt
-
 # 数据文件
 *.pcd
-*.ply
-*.las
-data/
-dataset/
 
-# 视频和图像数据
-*.mp4
-*.avi
-*.mov
-*.bag
-*.bag.active
-images/
-videos/
-
-# 配置备份
-*.yaml.bak
-*.xml.bak
-
-# 临时文件
-*.tmp
-*.swp
-*~
-.DS_Store
-Thumbs.db
-
-# 环境
-venv/
-env/
-.venv/
+# 压缩包
+*.zip
+*.tar.gz
+*.bz2
+*.xz
+*.rar
