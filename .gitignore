@@ -1,11 +1,56 @@
+# 编译产物
 build/
-log/
 install/
-.cache/
-.vscode/
+log/
+*.so
+*.a
+*.o
+*.pyc
+__pycache__/
 
-config/merged_bag/*
+# ROS相关
+*.log
+*.db3
+*.log.*
+*.pkl
+*.bag
+*.bag.active
 
-*.engine
+# 模型文件
+model/ONNX/*.onnx
+model/TRT/*.trt
+*.pt
+*.pth
+*.ckpt
 
-ros2bags/
+# 数据文件
+*.pcd
+*.ply
+*.las
+data/
+dataset/
+
+# 视频和图像数据
+*.mp4
+*.avi
+*.mov
+*.bag
+*.bag.active
+images/
+videos/
+
+# 配置备份
+*.yaml.bak
+*.xml.bak
+
+# 临时文件
+*.tmp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# 环境
+venv/
+env/
+.venv/
