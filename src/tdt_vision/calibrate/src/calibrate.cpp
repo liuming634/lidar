@@ -1,8 +1,13 @@
+// 【calibrate】手动标定：鼠标选取图像上已知3D坐标的场地特征点，solvePnP计算相机外参
+// 做法：用户按Enter进入标定模式，鼠标左键选点，WASD微调像素位置，按'n'确认
+//       选够5个点(对应self_FORTRESS/self_Tower/enemy_Base/enemy_Tower/enemy_High)
+//       自动调用cv::solvePnP(EPNP算法)解算rvec/tvec，保存到out_matrix.yaml
 #include "calibrate.h"
 #include <string>
 
 namespace tdt_radar {
 
+// 构造函数：加载相机内参、定义场地特征点（基地、前哨站、高地等）、订阅图像话题
 Calibrate::Calibrate(const rclcpp::NodeOptions& options)
     : Node("radar_calibrate_node", options)
 {
@@ -45,6 +50,7 @@ Calibrate::Calibrate(const rclcpp::NodeOptions& options)
     std::cout << "Calibrate end" << std::endl;
 }
 
+// 图像回调：显示图像和UI，标定模式下收集鼠标选取的点，点数足够时调用solve()解算
 void Calibrate::callback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
     auto    img = cv_bridge::toCvCopy(msg, "bgr8")->image;
@@ -79,6 +85,7 @@ void Calibrate::callback(const sensor_msgs::msg::Image::SharedPtr msg)
     }
 }
 
+// 压缩图像回调（功能同callback，处理压缩图像话题）
 void Calibrate::compressed_callback(
     const sensor_msgs::msg::CompressedImage::SharedPtr msg)
 {
@@ -112,6 +119,7 @@ void Calibrate::compressed_callback(
     }
 }
 
+// 鼠标回调：左键选取点，WASD微调位置，按'n'确认添加，显示ROI放大区域辅助精确定位
 void mousecallback(int event, int x, int y, int flags, void* userdata)
 {
     int temp_key = 0;
@@ -171,6 +179,8 @@ void mousecallback(int event, int x, int y, int flags, void* userdata)
     }
 }
 
+// solve()：用EPNP算法求解3D-2D的PnP问题，得到相机在世界坐标系下的旋转rvec和平移tvec
+// 结果写入config/out_matrix.yaml，之后手动调用parser.Change_Matrix()更新
 void Calibrate::solve()
 {
     cv::solvePnP(real_points, pick_points, camera_matrix, dist_coeffs, rvec,

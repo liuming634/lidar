@@ -1,3 +1,4 @@
+// dynamic_cloud.h：动态点云检测节点头文件，支持多线程KD树动态点提取
 #include <pcl/filters/passthrough.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <tf2_ros/buffer.h>

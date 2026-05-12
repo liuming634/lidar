@@ -1,3 +1,9 @@
+// 【debug_map】2D小地图可视化+英雄状态+决策发送
+// 做法：1)从/kalman_detect接收融合后的蓝/红方6车位置，在RM2025.png地图上画圆圈+编号
+//      2)用滑动时间窗(0.5s内更新有效)显示车辆最新位置
+//      3)判断英雄机器人(id=0)的进退场状态(根据x坐标阈值判断在基地/前哨/其他)
+//      4)通过marks分数(≥117→relax, <105→恢复)和更新新鲜度控制Radar2Sentry的发送频率
+//      5)发送/hero_state和/Radar2Sentry给决策层和哨兵
 #include <fstream>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv4/opencv2/opencv.hpp>
@@ -13,6 +19,7 @@
 namespace tdt_radar {
 class DebugMap : public rclcpp::Node {
 public:
+    // 构造函数：订阅kalman_detect、resolve_result、match_info，发布雷达决策信息
     explicit DebugMap(const rclcpp::NodeOptions& options)
         : Node("debug_map", options)
     {
@@ -50,6 +57,7 @@ public:
             match_info.self_color = 2;
     }
 
+    // 在小地图上绘制蓝/红方车辆位置（带编号），0.5秒内更新有效
     void show_map()
     {
         auto   now_time = std::chrono::system_clock::now();
@@ -88,6 +96,7 @@ public:
         cv::imshow("map", clone_map);
         cv::waitKey(1);
     }
+    // 相机检测结果回调（低频率接收，处理首次检测到目标时初始化位置）
     void camera_callback(
         const std::shared_ptr<vision_interface::msg::DetectResult> msg)
     {
@@ -123,6 +132,7 @@ public:
         show_map();
     }
 
+    // kalman融合结果回调：更新地图位置，判断英雄机器人进退场，发送Radar2Sentry信息
     void
     callback(const std::shared_ptr<vision_interface::msg::DetectResult> msg)
     {

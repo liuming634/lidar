@@ -1,3 +1,8 @@
+// 【detect】三级级联检测：车辆检测→装甲板检测→装甲板分类
+// 做法：1)YOLO-V8检测整图得到车辆框，裁剪每个车辆ROI
+//      2)对每个ROI用轻量级armor_yolo检测装甲板
+//      3)用classifier(DenseNet121)识别装甲板上的编号(1~5)
+//      4)通过BGR通道差判断装甲板颜色(蓝/红)，按编号填入DetectResult消息的对应槽位
 #include "detect.h"
 
 #include <filesystem>
@@ -10,6 +15,9 @@
 namespace tdt_radar {
 unsigned int count_img = 0;
 
+// 颜色判断：拆分B/G/R三通道，计算全图(B-R)和(R-B)的均值
+// 蓝色灯条反射蓝光→B-R平均值大→返回0(蓝)
+// 红色灯条反射红光→R-B平均值大→返回2(红)
 int getColor(cv::Mat& img)
 {
     std::vector<cv::Mat> channels;
@@ -26,6 +34,7 @@ int getColor(cv::Mat& img)
     }
 }
 
+// 检查小矩形是否在大矩形内部
 bool isRectInside(const cv::Rect& small, const cv::Rect& big)
 {
     bool topLeftInside = big.contains(small.tl());
@@ -48,6 +57,7 @@ bool isBoxInside(const yolo::Box& small, const yolo::Box& big)
     return isRectInside(small_rect, big_rect);
 }
 
+// clamp矩形到图像边界内，防止cv::Mat越界访问
 cv::Rect getSafeRect(cv::Mat& image, cv::Rect& rect)
 {
     cv::Rect save_rect;
@@ -58,6 +68,10 @@ cv::Rect getSafeRect(cv::Mat& image, cv::Rect& rect)
     return save_rect;
 }
 
+// 构造函数：1)检查CUDA可用性 2)从config/detect_params.yaml读取模型路径
+// 3)若.engine文件不存在则自动调用onnx2trt.py将ONNX转TensorRT
+// 4)加载yolo(车辆)、armor_yolo(装甲板)、classifier(编号分类)三个模型
+// 5)订阅/camera_image，发布/detect_result
 Detect::Detect(const rclcpp::NodeOptions& node_options)
     : Node("radar_detect_node", node_options)
 {
@@ -135,6 +149,12 @@ Detect::Detect(const rclcpp::NodeOptions& node_options)
     RCLCPP_INFO(this->get_logger(), "Detect node has been started.");
 }
 
+// 图像处理回调（三级级联检测）：
+// 1)YOLO检测整车 → 筛选class_label=0/1的车辆（≤12辆）
+// 2)裁剪每辆车的ROI区域 → 批量送入armor_yolo检测装甲板
+// 3)裁剪装甲板ROI → 批量送入classifier(DenseNet121)识别编号
+// 4)对每辆车选置信度最高的装甲板→判断颜色(蓝/红)→填入DetectResult对应编号槽
+// 5)按'r'键切换debug显示（绘制检测框+标签）
 void Detect::callback(const std::shared_ptr<sensor_msgs::msg::Image> msg)
 {
     std::chrono::steady_clock::time_point begin =
@@ -179,6 +199,7 @@ void Detect::callback(const std::shared_ptr<sensor_msgs::msg::Image> msg)
         images.push_back(image);
     }
 
+    // 对裁剪出的车辆图像批量检测装甲板
     auto armor_boxes = armor_yolo->forwards(images);
     bool has_armor = false;
     for (int i = 0; i < armor_boxes.size(); i++) {
@@ -249,6 +270,7 @@ void Detect::callback(const std::shared_ptr<sensor_msgs::msg::Image> msg)
             }
         }
     }
+    // 遍历每辆车，选出置信度最高的装甲板，判断颜色并填充DetectResult消息
     vision_interface::msg::DetectResult detect_result;
     for (auto& car : cars) {
         if (car.armors.size() == 0) {

@@ -1,3 +1,6 @@
+// 【BaseInfer.cpp】Norm归一化参数工厂 + AffineMatrix等比例缩放仿射变换
+// AffineMatrix.compute(): 将图像等比例缩放至网络输入尺寸，计算图像→网络(input)的i2d变换矩阵
+// 及其逆矩阵d2i(用于将网络输出的框坐标映射回原始图像)
 //
 // Created by mozihe on 24-11-21.
 //

@@ -1,3 +1,6 @@
+// radar_utils.h：坐标解算工具头文件
+// parser类：2D图像坐标到3D场地坐标的转换
+// Parser_Points类：管理场地多边形区域（道路、要塞等）的3D点云和2D投影
 #ifndef RADAR_UTILS_H
 #define RADAR_UTILS_H
 #include <iostream>

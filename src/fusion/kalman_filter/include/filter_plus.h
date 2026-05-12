@@ -1,3 +1,11 @@
+// 【filter_plus.h】单目标CV卡尔曼滤波器(位置+速度模型)
+// 状态量: [x, vx, y, vy]  观测量: [x, y]
+// 关键方法:
+//   match() — 预测位置与输入点的马氏距离<阈值判定关联
+//   update() — KF.correct()校正，记录历史轨迹
+//   update_predict_point() — KF.predict()时间更新，dt由计时器动态计算
+//   camera_match() — 在LiDAR历史轨迹中找时间最近的归档点，与相机检测点空间匹配
+//   get_color/get_number — 对detect_history统计投票，确定目标颜色和编号
 #include <opencv2/core/hal/interface.h>
 #include <vector>
 #include <opencv2/core/types.hpp>

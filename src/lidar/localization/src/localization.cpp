@@ -1,3 +1,7 @@
+// 【localization】LiDAR点云定位，用GICP将实时点云与场地地图配准
+// 做法：1)加载场地PCD地图，累积20帧实时点云做球面栅格滤波(0.1°×0.1°取最远点)降噪
+//      2)体素下采样(0.1m)，GICP配准得到livox_frame→rm_frame的变换矩阵
+//      3)配准分数<0.2视为收敛，之后持续发布TF变换
 #include <iostream>
 #include <memory>
 #include <chrono>
@@ -24,9 +28,10 @@ namespace tdt_radar {
 };
 class Localization : public rclcpp::Node {
 public:
+    // 构造函数：加载场地PCD地图，订阅/livox/lidar，每10秒发布一次地图点云用于调试
     Localization(const rclcpp::NodeOptions& node_options) : Node("localization", node_options) {
         std::string target_pcd_file = "config/RM2025.pcd";
-        // 从pcd读取场地点云
+        // 加载场地PCD作为配准的目标点云
         target_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>());
         if (pcl::io::loadPCDFile(target_pcd_file, *target_cloud_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to load %s", target_pcd_file.c_str());
@@ -53,6 +58,12 @@ public:
     }
 
 private:
+    // 回调流程：
+    // 1)接收实时点云，先累积20帧到accumulated_clouds_ FIFO缓冲区
+    // 2)对累积点云做球面栅格滤波：按方位角/俯仰角(0.1°步长)分格，每格只保留最远点（消除近距离噪点）
+    // 3)范围裁剪(x:5~30, y:-10~8, z<7)，体素下采样(0.1m叶大小)
+    // 4)GICP配准实时点云(source)与场地地图(target)，fitness<0.2认为收敛，标记has_aligned_
+    // 5)每帧发布TF: livox_frame → rm_frame
     void callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         if(!has_aligned_){
 
@@ -122,7 +133,7 @@ private:
         filter_msg.header.frame_id = "livox_frame";
         filter_publisher_->publish(filter_msg);
 
-        // 进行点云配准
+        // GICP配准：source=实时点云, target=场地地图, 输出4×4变换矩阵
         std::cout << "--- pcl::GICP ---" << std::endl;
         boost::shared_ptr<pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ>> gicp(new pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ>());
         transform = align(gicp, target_cloud_, source_cloud);
@@ -130,6 +141,7 @@ private:
         publishTF(transform);
     }
 
+    // GICP配准封装：执行配准，fitness score<0.2设置has_aligned_标志，返回变换矩阵
     pcl::Registration<pcl::PointXYZ, pcl::PointXYZ>::Matrix4 align(boost::shared_ptr<pcl::Registration<pcl::PointXYZ, pcl::PointXYZ>> registration, const pcl::PointCloud<pcl::PointXYZ>::Ptr& target_cloud, const pcl::PointCloud<pcl::PointXYZ>::Ptr& source_cloud) {
         registration->setInputTarget(target_cloud);
         registration->setInputSource(source_cloud);
@@ -147,6 +159,7 @@ private:
         return registration->getFinalTransformation();
     }
 
+    // 从4×4变换矩阵中提取平移(0,3)(1,3)(2,3)和旋转3×3子块→四元数，广播为TF
     void publishTF(const Eigen::Matrix4f& transform) {
 
         geometry_msgs::msg::TransformStamped transform_stamped;

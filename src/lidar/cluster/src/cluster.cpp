@@ -1,3 +1,6 @@
+// 【cluster】LiDAR点云欧几里得聚类，提取每个目标物体的中心点
+// 做法：对动态点云建KD-tree，用EuclideanClusterExtraction做距离聚类(容差0.25m)
+//       每个簇内所有点坐标求均值得到质心，作为单个目标的位置估计发布出去
 #include "cluster.h"
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/common/common.h>
@@ -18,6 +21,7 @@ Cluster::Cluster(const rclcpp::NodeOptions& node_options)
         "/livox/lidar_cluster", 10);
 }
 
+// 回调：PCL欧几里得聚类(容差0.25m，簇大小5~1000点)，对每个簇计算XYZ均值作为质心点，合并发布
 void Cluster::callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
     std::chrono::steady_clock::time_point t1 =

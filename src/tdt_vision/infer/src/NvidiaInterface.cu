@@ -1,3 +1,8 @@
+// 【NvidiaInterface.cu】TensorRT C++ API完整封装
+// 核心功能：1)从.engine文件反序列化ICudaEngine + 创建IExecutionContext
+//          2)BaseMemory模板管理CPU(PinnedMemory)/GPU/Unified三种内存分配与释放
+//          3)InferImpl提供bindings绑定→enqueueV3异步推理、动态形状设置、维度查询
+//          4)cudaEvent计时器、Nvinfer ILogger回调
 #include <NvInfer.h>
 #include <cuda_runtime.h>
 #include <stdarg.h>

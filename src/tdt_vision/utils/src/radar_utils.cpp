@@ -1,3 +1,9 @@
+// 【radar_utils.cpp】2D→3D坐标透视变换解算工具
+// parser类: 利用相机外参(rvec/tvec)+内参做cv::projectPoints→cv::getPerspectiveTransform
+//    →cv::perspectiveTransform，将图像2D坐标映射到场地水平面坐标
+//    parse()流程: 先判断点落在哪个场地区域(道路/要塞/高地)→获取该区域高度→用对应高度做透视变换
+// Parser_Points类: 从RM2025_Points.yaml读取各区域(道路/要塞等)的3D多边形顶点
+//   通过World2Camera()投影到图像平面，用于点归属判断(pointPolygonTest)和UI绘制
 #include "radar_utils.h"
 
 #define ARMOR_HEIGHT 0.15
@@ -8,6 +14,7 @@ bool isPointInsideScreen(cv::Point2f point, int screenWidth,
     return point.x >= 0 && point.x <= screenWidth && point.y >= 0 &&
            point.y <= screenHeight;
 }
+// parser构造函数：加载外参(rvec/tvec)和内参(camera_matrix/dist_coeffs)，初始化场地道路区域
 parser::parser()
 {
     cv::FileStorage fs;
@@ -40,6 +47,7 @@ parser::parser()
     points_map["Self_Fortress"]->Height = 0.15;
     points_map["Enemy_Fortress"]->Height = 0.15;
 }
+// 更新外参（标定后重新加载），并更新所有区域点
 void parser::Change_Matrix()
 {
     cv::FileStorage fs;
@@ -52,6 +60,7 @@ void parser::Change_Matrix()
         points.second->Update();
     }
 }
+// 在图像上绘制场地各区域的多边形边框
 void parser::draw_ui(cv::Mat& img)
 {
     for (auto& points : points_map) {
@@ -59,6 +68,7 @@ void parser::draw_ui(cv::Mat& img)
                       cv::Scalar(255, 255, 255));
     }
 }
+// 核心解算函数：先判断点落在哪个区域获取高度，再通过透视变换得到场地2D坐标
 cv::Point2f parser::parse(cv::Point2f& input_point)
 {
     float temp_height = get_height(input_point);
@@ -67,6 +77,7 @@ cv::Point2f parser::parse(cv::Point2f& input_point)
     }
     return get_2d(input_point, temp_height);
 }
+// 判断2D点落在哪个场地区域，返回对应高度
 float parser::get_height(cv::Point2f& input_point)
 {
     for (auto& points : points_map) {
@@ -76,6 +87,7 @@ float parser::get_height(cv::Point2f& input_point)
     }
     return 0;
 }
+// 透视变换解算：用PNP投影得到图像和场地间的映射矩阵，再利用perspectiveTransform得到场地坐标
 cv::Point2f parser::get_2d(cv::Point2f& input_point, float height)
 {
     std::vector<cv::Point3f> world_points;
@@ -145,6 +157,7 @@ void Parser_Points::World2Camera()
                       dist_coeffs, temp_2D);
     Points_2D = Float2Int(temp_2D);
 }
+// Parser_Points构造函数：从yaml读取3D点，计算到2D投影
 Parser_Points::Parser_Points(const std::string& points_name)
 {
     cv::FileStorage fs;

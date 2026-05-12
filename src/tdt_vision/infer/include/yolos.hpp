@@ -1,3 +1,7 @@
+// 【yolos.hpp】YOLO推理接口声明
+// Type枚举区分V3/V5/V7/V8/V8Seg/V5Face，不同模型对应不同的GPU解码内核
+// Box结构体: 坐标(left,top,right,bottom)、置信度、类别、可选分割图和关键点
+// load()函数从TensorRT.engine文件创建推理对象，返回shared_ptr<Infer<BoxArray>>
 #ifndef __YOLO_HPP__
 #define __YOLO_HPP__
 
@@ -34,6 +38,7 @@ struct InstanceSegmentMap {
     virtual ~InstanceSegmentMap();
 };
 
+// 检测框数据结构：坐标、置信度、类别标签、实例分割图和关键点
 struct Box {
     float left, top, right, bottom, confidence;
     int   class_label;
@@ -63,6 +68,7 @@ struct Box {
     }
 };
 
+// BoxArray是检测框数组类型，load函数加载TensorRT引擎并返回推理对象
 typedef std::vector<Box> BoxArray;
 
 std::shared_ptr<tdt_radar::Infer<BoxArray>>

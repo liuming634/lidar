@@ -1,9 +1,14 @@
+// 【resolve】坐标解算：将检测到的2D图像坐标映射到RM2025场地3D坐标
+// 做法：利用标定得到的外参(rvec/tvec)，调用parser.parse()做透视变换
+//       蓝色系坐标映射到场地右半区(y+15)，红色映射后保持原y
+//       发布两种结果：DetectResult(二维坐标)和PointCloud2点云+地图可视化
 #include "resolve.h"
 
 #define TDT_INFO(msg) std::cout << msg << std::endl
 
 namespace tdt_radar {
 
+// 构造函数：加载小地图、订阅2D点和检测结果、发布3D点云和解算结果
 Resolve::Resolve(const rclcpp::NodeOptions& node_options)
     : Node("radar_resolve_node", node_options)
 {
@@ -31,6 +36,7 @@ Resolve::Resolve(const rclcpp::NodeOptions& node_options)
     TDT_INFO("Load radar resolve node success!");
 }
 
+// 接收比赛信息（标记点、血量、比赛时间）
 void Resolve::MatchInfoCallback(
     const vision_interface::msg::MatchInfo::SharedPtr msg)
 {
@@ -43,6 +49,7 @@ void Resolve::MatchInfoCallback(
     match_time = msg->match_time;
 }
 
+// 单点2D->3D解算回调（旧接口，处理单个相机点坐标）
 void Resolve::callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
 {
     cv::Point2f point;
@@ -63,6 +70,7 @@ void Resolve::callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
     pub->publish(output);
 }
 
+// 批量解算回调：将6个蓝/红方车辆的图像坐标转为场地坐标，发布点云和地图图像
 void Resolve::DetectCallback(
     const vision_interface::msg::DetectResult::SharedPtr msg)
 {

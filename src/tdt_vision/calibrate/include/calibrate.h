@@ -1,3 +1,4 @@
+// calibrate模块头文件：相机标定，通过已知场地坐标点解算相机外参
 #ifndef RADAR_CALIBRATE_H
 #define RADAR_CALIBRATE_H
 
@@ -28,6 +29,7 @@ static cv::Mat                  rvec;
 static cv::Mat                  tvec;
 static bool                     is_calibrating = false;
 
+// 标定节点：鼠标选取图像中场地特征点，调用solvePnP计算相机位姿
 class Calibrate final : public rclcpp::Node {
 public:
     std::vector<cv::Point3f> real_points;

@@ -1,3 +1,4 @@
+// resolve模块头文件：定义Resolve节点，负责2D到3D坐标转换和地图映射
 #ifndef RADAR_RESOLVE_H
 #define RADAR_RESOLVE_H
 
@@ -18,6 +19,7 @@
 #include "vision_interface/msg/radar2_sentry.hpp"
 namespace tdt_radar {
 
+// 解算节点：将图像2D坐标转换为场地3D坐标，在小地图上绘制并发布点云
 class Resolve final : public rclcpp::Node {
 public:
     explicit Resolve(const rclcpp::NodeOptions& options);
@@ -44,6 +46,7 @@ private:
         pub_radar;
 };
 
+// 地图上车辆的数据结构
 class map_car {
 public:
     float x;

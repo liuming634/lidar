@@ -1,3 +1,6 @@
+// 【InferTool.hpp】CUDA预处理核函数声明
+// warp_affine_bilinear_and_normalize_plane: 在GPU上执行仿射变换+双线性插值+归一化
+// 输出为planar格式(CHW)，直接作为TensorRT输入
 #ifndef INFERTOOL_H
 #define INFERTOOL_H
 

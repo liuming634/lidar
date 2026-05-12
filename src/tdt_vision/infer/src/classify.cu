@@ -1,3 +1,6 @@
+// 【classify.cu】分类器(DenseNet121)TensorRT推理实现，输出装甲板编号分类结果
+// 做法：预处理用ImageNet归一化(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
+//       后处理取softmax输出中最大值索引作为分类标签(对应车辆编号1~5)
 #include <iostream>
 #include "NvidiaInterface.hpp"
 #include "classify.hpp"
@@ -6,6 +9,7 @@ namespace classify {
 
 using namespace std;
 
+// 后处理：取softmax输出中置信度最高的索引作为分类结果
 int postprocess(vector<float>& output_array)
 {
     int   max_index = 0;
@@ -24,6 +28,7 @@ inline int upbound(int n, int align = 32)
     return (n + align - 1) / align * align;
 }
 
+// 分类器推理实现类：管理TensorRT引擎，支持批量图像分类
 class InferImpl : public Infer<int> {
 public:
     shared_ptr<trt::Infer>                         trt_;
@@ -99,6 +104,7 @@ public:
             affine_matrix_device, 114, normalize_, stream_);
     }
 
+    // 加载TensorRT引擎，设置ImageNet归一化参数（mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]）
     bool load(const string& engine_file, Type type)
     {
         trt_ = trt::load(engine_file);

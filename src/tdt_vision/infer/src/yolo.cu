@@ -1,3 +1,9 @@
+// 【yolo.cu】YOLO系列模型(V3/V5/V7/V8/V8Seg/V5Face)的TensorRT推理实现
+// 做法：1)预处理：图像仿射变换(等比例缩放+padding)+归一化，在GPU上双线性插值执行
+//      2)前向推理：调用TensorRT引擎得到原始输出张量
+//      3)GPU解码内核：按不同YOLO版本的输出格式解析bbox(cx,cy,w,h→left,top,right,bottom)
+//        做仿射逆变换将坐标映射回原图，再用GPU并行NMS去除重复框
+//      4)后处理：将GPU结果拷回CPU，组装BoxArray，支持分割掩码解码(V8Seg)
 #include "BaseInfer.hpp"
 #include "NvidiaInterface.hpp"
 #include "yolos.hpp"
@@ -23,6 +29,7 @@ affine_project(float* matrix, float x, float y, float* ox, float* oy)
     *oy = matrix[3] * x + matrix[4] * y + matrix[5];
 }
 
+// 通用解码内核（YOLOv3/v5/v7/x）：解析bbox输出，做仿射逆变换映射回原图
 static __global__ void
 decode_kernel_common(float* predict, int num_bboxes, int num_classes,
                      int output_cdim, float confidence_threshold,
@@ -151,6 +158,7 @@ decode_kernel_v5_face(float* predict, int num_bboxes, int num_classes,
     }
 }
 
+// YOLOv8解码内核：输出格式为[cx,cy,w,h,cls1,cls2,...]（无objectness分支）
 static __global__ void decode_kernel_v8(float* predict, int num_bboxes,
                                         int num_classes, int output_cdim,
                                         float  confidence_threshold,
@@ -218,6 +226,7 @@ static __device__ float box_iou(float aleft, float atop, float aright,
     return c_area / (a_area + b_area - c_area);
 }
 
+// NMS内核：GPU并行非极大值抑制，同类别框IoU超过阈值则抑制
 static __global__ void fast_nms_kernel(float* bboxes, int MAX_IMAGE_BOXES,
                                        float threshold)
 {
@@ -411,6 +420,7 @@ InstanceSegmentMap::~InstanceSegmentMap()
     this->height = 0;
 }
 
+// YOLO推理实现类：管理TensorRT引擎、预处理、前向推理和后处理
 class InferImpl : public Infer<BoxArray> {
 public:
     shared_ptr<trt::Infer>                         trt_;
@@ -433,6 +443,7 @@ public:
 
     virtual ~InferImpl() = default;
 
+    // 根据batch_size调整GPU/CPU内存分配
     void adjust_memory(int batch_size)
     {
         size_t input_numel =
@@ -457,6 +468,7 @@ public:
         }
     }
 
+    // 预处理：将输入图像通过仿射变换缩放到网络输入尺寸，并做归一化
     void
     preprocess(int ibatch, const Image& image,
                shared_ptr<trt::Memory<unsigned char>> preprocess_buffer,
@@ -562,6 +574,7 @@ public:
         return output[0];
     }
 
+    // 批量前向推理：预处理 -> TensorRT推理 -> GPU解码+NMS -> 拷贝结果到CPU -> 组装BoxArray
     virtual vector<BoxArray> forwards(const vector<Image>& images,
                                       void* stream = nullptr) override
     {

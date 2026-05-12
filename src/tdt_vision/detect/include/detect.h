@@ -1,3 +1,5 @@
+// detect模块头文件：定义Detect节点和Car数据结构
+// Detect节点负责YOLO车辆检测、装甲板检测与分类
 #ifndef RADAR_DETECT_H
 #define RADAR_DETECT_H
 
@@ -18,6 +20,7 @@
 #include <fstream>
 namespace tdt_radar {
 
+// 检测节点：加载YOLO+装甲板+分类器三个模型，处理图像并发布检测结果
 class Detect final : public rclcpp::Node {
 public:
     explicit Detect(const rclcpp::NodeOptions& options);
@@ -39,6 +42,7 @@ private:
     std::string armor_path;
     std::string classify_path;
 };
+// Car数据结构：存储车辆矩形框、装甲板列表、中心点、编号和颜色
 class Car {
 public:
     cv::Rect       car_rect;

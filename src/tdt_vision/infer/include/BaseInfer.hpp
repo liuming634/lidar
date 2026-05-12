@@ -1,3 +1,8 @@
+// 【BaseInfer.hpp】推理基础数据结构和接口
+// Image: 包装bgrptr+宽高的图像容器，不管理内存生命周期
+// Norm:  归一化参数({MeanStd,AlphaBeta} × 可选通道交换)，提供工厂方法
+// AffineMatrix: 图像→网络输入的等比例缩放仿射变换及其逆变换
+// Infer<T>: 模板接口，定义forward(单张)和forwards(批量)纯虚函数
 #ifndef __BASEINFER_HPP__
 #define __BASEINFER_HPP__
 
@@ -23,6 +28,7 @@ enum class NormType : int { None = 0, MeanStd = 1, AlphaBeta = 2 };
 
 enum class ChannelType : int { None = 0, SwapRB = 1 };
 
+// 推理接口模板：支持单张forward和批量forwards
 template <typename T>
 class Infer {
 public:
@@ -31,6 +37,7 @@ public:
                                     void* stream = nullptr) = 0;
 };
 
+// 图像归一化参数：支持MeanStd、AlphaBeta、None三种方式及RGB通道交换
 struct Norm {
     float       mean[3];
     float       std[3];
@@ -48,6 +55,7 @@ struct Norm {
     static Norm None();
 };
 
+// 仿射变换矩阵：计算图像缩放和平移的变换与逆变换
 struct AffineMatrix {
     float i2d[6];
     float d2i[6];

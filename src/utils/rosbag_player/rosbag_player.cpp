@@ -1,3 +1,8 @@
+// 【rosbag_player】ROS2 rosbag回放节点，模拟实车传感器数据
+// 做法：独立线程按顺序读取bag文件，对每个消息反序列化并按话题分发:
+//   /livox/lidar → 点云  /compressed_image → cv::imdecode解码→Image消息
+//   /match_info → 比赛信息
+// 每帧之间sleep(100ms-处理耗时)以控制回放速度接近实时，播完自动loop重启
 #include <thread>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
@@ -52,6 +57,7 @@ public:
     }
 
 private:
+    // 回放线程：循环读取bag消息，反序列化后按话题发布，控制回放速度接近实时
     void play_bag()
     {
         while (rclcpp::ok()) {

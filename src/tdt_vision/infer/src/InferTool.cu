@@ -1,3 +1,8 @@
+// 【InferTool.cu】CUDA核函数：仿射变换+归一化+通道交换一体化预处理
+// warp_affine_bilinear_and_normalize_plane_kernel:
+//   每个线程处理一个目标像素，通过仿射逆矩阵计算对应源图坐标
+//   双线性插值取源图4邻域像素加权平均，然后根据Norm类型做归一化或通道交换(RGB↔BGR)
+//   输出为planar格式(CHW: C个H×W平面)，满足TensorRT输入要求
 #include "InferTool.hpp"
 
 #include <NvidiaInterface.hpp>

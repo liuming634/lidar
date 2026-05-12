@@ -1,14 +1,8 @@
 {
     "lidar_config": [
         {
-            "broadcast_code": "",
-            "
-
-
-
-
-
-            enable_connect": false,
+            "broadcast_code": "3GGDJA600100601",
+            "enable_connect": true,
             "enable_fan": true,
             "return_mode": 1,
             "coordinate": 1,
@@ -21,6 +15,6 @@
         "device_name": "/dev/ttyUSB0",
         "comm_device_type": 0,
         "baudrate_index": 2,
-        "parity_index": 0     
+        "parity_index": 0
     }
 }

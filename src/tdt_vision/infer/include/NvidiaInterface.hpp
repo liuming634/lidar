@@ -1,3 +1,8 @@
+// 【NvidiaInterface.hpp】TensorRT底层C++ API封装
+// BaseMemory: CPU(Pinned)/GPU/Unified三种内存的统一管理模板
+// Infer: TensorRT推理器抽象接口，支持bindings绑定、动态形状、维度查询
+// Timer: cudaEvent的RAII封装，用于GPU测时
+// load()从.engine文件反序列化并创建Infer对象
 #ifndef __INFER_HPP__
 #define __INFER_HPP__
 
@@ -153,6 +158,7 @@ public:
     }
 };
 
+// TensorRT推理器接口：绑定输入输出、查询维度、设置动态形状
 class Infer {
 public:
     virtual bool             forward(const std::vector<void*>& bindings,

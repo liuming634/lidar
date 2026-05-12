@@ -1,3 +1,5 @@
+// 【classify.hpp】分类器推理接口，当前支持DenseNet121
+// 输入Image，输出int分类标签（对应装甲板编号），支持批量推理
 #ifndef __CLASSIFY_HPP__
 #define __CLASSIFY_HPP__
 

@@ -1,3 +1,4 @@
+// 【cluster.h】订阅/livox/lidar_dynamic，用欧几里得聚类提取目标质心，发布到/livox/lidar_cluster
 #include <pcl/kdtree/kdtree.h>
 #include <chrono>
 #include <numeric>

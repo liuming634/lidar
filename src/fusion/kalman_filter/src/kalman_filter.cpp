@@ -1,3 +1,9 @@
+// 【kalman_filter】多目标卡尔曼滤波融合跟踪
+// 做法：维护一组卡尔曼滤波器(Kalman_filter_plus)，每个跟踪一个目标
+// LiDAR触发(主时钟)：先对所有KF做predict()更新位置，再将LiDAR点与KF做距离匹配
+//   无匹配→新建KF，唯一匹配→update()校正，多匹配→选最近的
+// 相机触发(辅助)：用时间戳最接近的LiDAR历史点与相机检测点做空间匹配，记录颜色和编号
+// 超时1.5s的KF被删除。最终融合结果发布到/kalman_detect和/radar2senty
 #include "kalman_filter.h"
 #include <pcl_conversions/pcl_conversions.h>
 #include "filter_plus.h"
@@ -7,6 +13,7 @@ namespace tdt_radar {
 KalmanFilter::KalmanFilter(const rclcpp::NodeOptions& node_options)
     : rclcpp::Node("kalman_filter_node", node_options)
 {
+    // 订阅 LiDAR聚类 / 相机检测 / LiDAR动态检测 / 比赛信息 四个话题
     sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/livox/lidar_cluster", 10,
         std::bind(&KalmanFilter::callback, this, std::placeholders::_1));
@@ -37,6 +44,7 @@ KalmanFilter::KalmanFilter(const rclcpp::NodeOptions& node_options)
     RCLCPP_INFO(this->get_logger(), "Kalman_filter_Node has been started.");
 }
 
+// 接收比赛信息（自方颜色等）
 void KalmanFilter::match_callback(
     const vision_interface::msg::MatchInfo::SharedPtr msg)
 {
@@ -44,6 +52,8 @@ void KalmanFilter::match_callback(
     RCLCPP_INFO(this->get_logger(), "Match_info_callback");
 }
 
+// 相机检测回调：遍历6个编号的蓝/红方检测结果，对每个KF调用camera_match做时间+空间关联
+// 匹配成功则KF会记录(color, number)到detect_history，用于后续识别目标颜色和编号
 void KalmanFilter::detect_callback(
     const vision_interface::msg::DetectResult::SharedPtr msg)
 {
@@ -75,6 +85,12 @@ void KalmanFilter::lidar_callback(
     this->lidar_detect = *msg;
 }
 
+// LiDAR触发的主回调流程：
+// 1)所有KF执行predict()更新预测位置，重置has_updated标志
+// 2)对每个LiDAR聚类点，遍历所有KF做距离匹配(距离<car_max_speed*dt+detect_r)
+//   无匹配→新建KF，唯一匹配→update()(KF.correct+记录history)，多匹配→选最近更新
+// 3)遍历KF，删除last_time>1.5s的(超时)，存活KF根据detect_history投票决定颜色和编号
+// 4)蓝方自方做坐标翻转(28-x, 15-y)，发布/kalman_detect和/radar2senty
 void KalmanFilter::callback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
