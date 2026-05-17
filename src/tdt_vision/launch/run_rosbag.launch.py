@@ -25,7 +25,7 @@ def generate_launch_description():
             parameters=[
                 {
                     "rosbag_file":
-                    "/home/lm/Ubuntu/code/rm/T-DT_Radar/rosbag/rosbag/rosbag.db3"
+                    "/home/lm/Ubuntu/code/rm/radar/T-DT_Radar/rosbag/rosbag/rosbag.db3"
                 }
             ],
             extra_arguments=[{"use_intra_process_comms": True}],
@@ -60,7 +60,7 @@ def generate_launch_description():
         )
 
     def get_camera_detector_container(
-        radar_detect_node, radar_resolve_node, foxglove_node, ros_bag_player_node
+        radar_detect_node, radar_resolve_node, ros_bag_player_node
     ):
         return ComposableNodeContainer(
             name="camera_detector_container",
@@ -70,7 +70,6 @@ def generate_launch_description():
             composable_node_descriptions=[
                 radar_detect_node,
                 radar_resolve_node,
-                foxglove_node,
                 ros_bag_player_node,
             ],
             output="both",
@@ -80,14 +79,15 @@ def generate_launch_description():
 
     radar_detect_node = get_radar_detect_node("tdt_vision", "tdt_radar::Detect")
     radar_resolve_node = get_radar_resolve_node("tdt_vision", "tdt_radar::Resolve")
-    foxglove_node = get_foxglove_node(
-        "foxglove_bridge", "foxglove_bridge::FoxgloveBridge"
-    )
+    # foxglove_bridge 未安装，暂时注释掉
+    # foxglove_node = get_foxglove_node(
+    #     "foxglove_bridge", "foxglove_bridge::FoxgloveBridge"
+    # )
 
     ros_bag_player_node = get_rosbag_player_node('rosbag_player', 'RosbagPlayer')
 
     cam_detector = get_camera_detector_container(
-        radar_detect_node, radar_resolve_node, foxglove_node, ros_bag_player_node
+        radar_detect_node, radar_resolve_node, ros_bag_player_node
     )
 
     plugin_map_launch_cmd = IncludeLaunchDescription(

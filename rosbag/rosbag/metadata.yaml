@@ -1,0 +1,50 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: sqlite3
+  duration:
+    nanoseconds: 407690028373
+  starting_time:
+    nanoseconds_since_epoch: 1754213701134127777
+  message_count: 20098
+  topics_with_message_count:
+  - topic_metadata:
+      name: /livox/lidar
+      type: sensor_msgs/msg/PointCloud2
+      serialization_format: cdr
+    message_count: 4078
+  - topic_metadata:
+      name: /lidar_detect
+      type: vision_interface/msg/RadarWarn
+      serialization_format: cdr
+    message_count: 4078
+  - topic_metadata:
+      name: /Radar2Sentry
+      type: vision_interface/msg/Radar2Sentry
+      serialization_format: cdr
+    message_count: 4078
+  - topic_metadata:
+      name: /compressed_image
+      type: sensor_msgs/msg/CompressedImage
+      serialization_format: cdr
+    message_count: 3786
+  - topic_metadata:
+      name: /match_info
+      type: vision_interface/msg/MatchInfo
+      serialization_format: cdr
+    message_count: 2039
+  - topic_metadata:
+      name: /sentry2RadarData
+      type: vision_interface/msg/Sentry2Radar
+      serialization_format: cdr
+    message_count: 2039
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+  - rosbag.db3
+  files:
+  - path: rosbag.db3
+    starting_time:
+      nanoseconds_since_epoch: 1754213701134127777
+    duration:
+      nanoseconds: 407690028373
+    message_count: 20098
