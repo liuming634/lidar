@@ -33,7 +33,20 @@ public:
                 "/resolve_result", rclcpp::SensorDataQoS(),
                 std::bind(&DebugMap::camera_callback, this,
                           std::placeholders::_1));
-        map = cv::imread("config/RM2025.png");
+        // 读取地图路径与显示缩放配置
+        std::string map_path = "config/RM2025.png";
+        int display_scale = 25;
+        try {
+            cv::FileStorage fs("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
+            if (fs.isOpened()) {
+                fs["field_map"] >> map_path;
+                fs["display_scale"] >> display_scale;
+                fs.release();
+            }
+        } catch (const cv::Exception& e) {
+            RCLCPP_WARN(this->get_logger(), "Failed to read elevation_meta.yaml, use default: %s", e.what());
+        }
+        map = cv::imread(map_path);
         match_info_sub =
             this->create_subscription<vision_interface::msg::MatchInfo>(
                 "/match_info", 10,
@@ -58,7 +71,9 @@ public:
         } catch (const cv::Exception& e) {
             RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
         }
-        cv::resize(map, map, cv::Size((int)(field_width_ * 25), (int)(field_height_ * 25)));
+        if (display_scale > 0) {
+            cv::resize(map, map, cv::Size((int)(field_width_ * display_scale), (int)(field_height_ * display_scale)));
+        }
     }
     void save_match_info(
         const std::shared_ptr<vision_interface::msg::MatchInfo> msg)

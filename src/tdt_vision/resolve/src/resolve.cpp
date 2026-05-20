@@ -13,7 +13,20 @@ Resolve::Resolve(const rclcpp::NodeOptions& node_options)
     : Node("radar_resolve_node", node_options)
 {
     parser_ = new parser();
-    minimap = cv::imread("config/RM2025.png");
+    // 读取地图路径配置
+    {
+        std::string map_path = "config/RM2025.png";
+        try {
+            cv::FileStorage fs("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
+            if (fs.isOpened()) {
+                fs["field_map"] >> map_path;
+                fs.release();
+            }
+        } catch (const cv::Exception& e) {
+            RCLCPP_WARN(this->get_logger(), "Failed to read elevation_meta.yaml, use default map: %s", e.what());
+        }
+        minimap = cv::imread(map_path);
+    }
     point_sub = this->create_subscription<geometry_msgs::msg::Vector3>(
         "camera_point2D", rclcpp::SensorDataQoS(),
         std::bind(&Resolve::callback, this, std::placeholders::_1));

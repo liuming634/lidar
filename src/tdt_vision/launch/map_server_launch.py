@@ -14,7 +14,7 @@ from launch.conditions import IfCondition
 
 def generate_launch_description():
     ld = LaunchDescription()
-    map_path = 'src/tdt_vision/maps/map.yaml'
+    map_path = 'config/map.yaml'
 
     map_server_node = Node(
         package="nav2_map_server",
