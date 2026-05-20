@@ -1,0 +1,11 @@
+elevation_max_m: 1.444944
+elevation_min_m: -0.18718
+formula: elevation = pixel_value / 65534 * (elevation_max_m - elevation_min_m) + elevation_min_m
+height: 1505
+note: pixel_value=65535 表示无数据区域（白色背景）
+output: 2_elevation_16bit_n0d187m_1d445m_20260520_083848.png
+pixel_max: 65534
+pixel_min: 0
+pixel_nodata: 65535
+source: 2.tiff
+width: 2916
