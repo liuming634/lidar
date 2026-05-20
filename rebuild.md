@@ -1,114 +1,251 @@
-# 场景适配修改指南
+# 基于PCD→PNG映射的场地配置方案
 
-本文档记录适配不同比赛/场景时需要修改的内容。
+用PCD点云生成灰度高程PNG作为2D地图，通过聚类代表点的XY对应到PNG像素位置，取区域灰度平均反算高度，配合配置文件做范围矫正，替代手动测量和硬编码。
 
 ---
 
-## 整体架构
+## 整体数据流
 
 ```
-                        resolve（ROS 2 节点层）
-                        ├── 接收 2D 检测结果
-                        ├── 调用 parser 做坐标转换
-                        └── 发布 3D 坐标 + 绘制小地图
-                            │
-                            ▼
-┌──────────────── utils（算法层）─────────────────────┐
-│  parser                                              │
-│  ├── 读取相机标定参数（camera_params.yaml）           │
-│  ├── 读取外参矩阵（out_matrix.yaml）                  │
-│  ├── 读取多边形区域定义（RM2025_Points.yaml）         │
-│  ├── get_height() → 判断点落在哪个区域，取对应高度     │
-│  └── get_2d()     → 透视变换：图像 2D → 世界 3D       │
-└──────────────────────────────────────────────────────┘
+LiDAR点云 → 预处理 → PCD静态地图 (field.pcd)
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                              ▼
+      欧几里得聚类 (动态物体)         生成灰度高程PNG
+               │                     (投影到2D俯视图)
+               │                              │
+               ▼                              ▼
+      聚类代表点 (x, y, z)          高程图 (2_elevation_gray256.png)
+               │                     2916×1505, 8bit灰度
+               │                              │
+               └────────── XY映射 ────────────┘
+                              │
+                              ▼
+                  取代表点周围窗口内的有效灰度值
+                  计算平均灰度 G_avg
+                              │
+                              ▼
+                  反算高度: H = G_avg × 0.008490 - 0.187180
+                              │
+                              ▼
+                  用PCD真实 z 值做范围矫正
+                  输出: 高度数据 + 长宽尺寸
 ```
 
 ---
 
-## 需要修改的内容
+## 高程PNG规格
 
-### 1. 配置文件（config/）
+| 项目 | 数值 |
+|------|------|
+| 图像尺寸 | 2916 × 1505 像素 |
+| 灰度位深 | 8 bit (0~255) |
+| 最低高度 | -0.187180 m |
+| 最高高度 | 1.969253 m |
+| 每级灰度 | 8.49 mm/级 |
+| 无数据标记 | 255 (白色) |
 
-| 文件 | 用途 | 说明 |
-|------|------|------|
-| `config/camera_params.yaml` | 相机内参 | 换相机就要重新标定 |
-| `config/out_matrix.yaml` | 相机外参（旋转+平移） | 相机安装位置变了就要重标 |
-| `config/RM2025_Points.yaml` | 6 个多边形区域的顶点定义（3D 世界坐标） | 场地不同，区域位置和高度都要改 |
+### 灰度-高度换算公式
 
-### 2. 代码中的硬编码常量
+灰度值 G (0 ≤ G ≤ 254) → 高度 H：
 
-**`resolve.cpp`**（ROS 节点层）：
+```
+H = G / 254 × 2.156433 - 0.187180
+H = G × 0.008490 - 0.187180
+```
 
-- `minimap = cv::imread("config/RM2025.png")` — 小地图图片，换场景要替换
-- `send_point.y = 15 - center_point.y` — `15` 是赛场半场宽度（Y方向）
-- `center_point.y = 15 + center_point.y` — 同上
-- `(Map_clone.cols * center_point.x) / 28` — `28` 是赛场长度（X方向）
-- `(Map_clone.rows * (15 - center_point.y) / 15)` — 小地图像素映射
+高度 H → 灰度值 G：
 
-**`radar_utils.cpp`**（算法层）：
+```
+G = (H + 0.187180) / 0.008490
+```
 
-- `parser::get_2d()` 中的参考平面四角坐标 `(12, -6) ~ (16, -8)` — 这些是透视变换的参考点，与场地尺寸和相机视野有关
-- `parser::parse()` 中的阈值 `0.79` — 高度阈值，超出返回固定点 `(19.322, -1.915)`
-- `ARMOR_HEIGHT = 0.15` — 装甲板中心离地高度
+### 配置文件 (meta.yaml)
 
-**`debug_map.cpp`**（调试可视化）：
+```yaml
+elevation_max_m: 1.969253
+elevation_min_m: -0.187180
+formula: H = G / 254 × (max - min) + min
+pixel_max: 254
+pixel_min: 0
+pixel_nodata: 255
+width: 2916
+height: 1505
+```
 
-- 场地尺寸常量、绘制比例等
-
-### 3. 各区域的对应高度
-
-在 `RM2025_Points.yaml` 中定义，当前 6 个区域：
-
-| 区域 | 当前高度 | 说明 |
-|------|----------|------|
-| `Middle_Line` | 0.3m | 中场线（路面高出地面） |
-| `Left_Road` | 0.2m | 左侧道路 |
-| `Right_Road` | 0.2m | 右侧道路 |
-| `Enemy_Buff` | 0.6m | 敌方增益区（有高台） |
-| `Self_Fortress` | 0.15m | 我方堡垒 |
-| `Enemy_Fortress` | 0.15m | 敌方堡垒 |
-
-> 新场景需要根据实际地形重新划分区域和设定高度。
+> 换场地时只需重新生成PNG和meta.yaml，调整高度范围参数即可。
 
 ---
 
-## 修改步骤
+## 实现步骤
 
-### Step 1：相机标定
-- 内参标定 → 更新 `config/camera_params.yaml`
-- 外参标定 → 更新 `config/out_matrix.yaml`
+### Step 1：生成PNG高程图
 
-### Step 2：录制静态地图 + 配置 debug_map
-- 用录制的俯视图替换 `config/RM2025.png`
-- 调整 `debug_map.cpp` 中的绘制参数
+从PCD点云生成灰度高程PNG：
+1. 加载PCD点云 `(x, y, z)`
+2. 将点云投影到2D俯视图网格，每个网格取 `z_max` 作为高度
+3. 将高度线性映射到灰度值 0~254，保存为PNG
+4. 同时生成 meta.yaml 记录高度范围
 
-### Step 3：定义多边形区域
-- 根据新场地图像，在 `RM2025_Points.yaml` 中标注 6 个区域的 3D 顶点坐标
-- 根据实际地形测量，设置每个区域的 height
+### Step 2：聚类提取代表点
 
-### Step 4：修改代码常量
-- `resolve.cpp` 中的场地尺寸（15、28）
-- `radar_utils.cpp` 中的参考平面坐标
-- 如果区域数量变了，还要改 `parser` 的 `points_map` 初始化
+LiDAR动态点云经欧几里得聚类后，每个cluster计算质心 `(x, y, z)`：
+- `(x, y)` 用于映射到PNG像素位置
+- `z` 作为真实高度用于后续矫正
 
-### Step 5：编译测试
-- 确认 2D 检测点能正确映射到场地 3D 坐标
-- 在小地图上验证绘制位置是否正确
+### Step 3：XY→UV坐标映射
+
+将聚类代表点的场地坐标 `(x, y)` 转换到PNG像素坐标 `(u, v)`：
+- 需要知道PNG的分辨率（米/像素）
+- 需要知道原点 `(0, 0)` 对应的像素位置
+- y轴翻转（场地坐标y↑对应图像v↓）
+
+### Step 4：区域灰度采样与高度反算
+
+在 `(u, v)` 周围取窗口（如5×5像素）：
+1. 收集窗口内所有 G ≠ 255 的有效像素灰度值
+2. 计算平均灰度值 G_avg
+3. 用公式反算高度: `H = G_avg × 0.008490 - 0.187180`
+
+### Step 5：高度矫正
+
+```
+对第 i 个聚类物体:
+  真实高度 z_i (来自PCD点云)
+  灰度推算高度 H_i (来自PNG灰度平均)
+
+矫正偏移: offset = mean(z_i - H_i)
+矫正后高度: H_corrected = H + offset
+```
+
+---
+
+## 代码示例
+
+```python
+import cv2
+import numpy as np
+
+# 加载灰度高程图
+img = cv2.imread('config/2_elevation_gray256.png', cv2.IMREAD_GRAYSCALE)
+
+# 场地坐标 (x, y) → 像素坐标 (u, v)
+def xy_to_uv(x, y, resolution, origin_x, origin_y):
+    u = int((x - origin_x) / resolution)
+    v = int((origin_y - y) / resolution)  # y轴翻转
+    return u, v
+
+# 在 (u,v) 周围取窗口平均灰度并反算高度
+def get_avg_height(img, u, v, window_size=5):
+    half = window_size // 2
+    roi = img[max(0, v-half):v+half+1, max(0, u-half):u+half+1]
+    valid = roi[roi != 255].astype(np.float32)
+    if len(valid) == 0:
+        return None
+    G_avg = np.mean(valid)
+    H = G_avg * 0.008490 - 0.187180
+    return H
+
+# 对每个聚类代表点查询高度
+for cluster_x, cluster_y, cluster_z in representative_points:
+    u, v = xy_to_uv(cluster_x, cluster_y, res, ox, oy)
+    H = get_avg_height(img, u, v)
+    if H is not None:
+        print(f"({cluster_x:.3f}, {cluster_y:.3f}) → "
+              f"灰度推算: {H:.4f}m, PCD真实: {cluster_z:.4f}m")
+```
+
+---
+
+## 配置文件说明
+
+| 文件 | 用途 | 是否换场地就改 |
+|------|------|---------------|
+| `config/field.pcd` | PCD静态地图 | ✅ 重新扫描 |
+| `config/2_elevation_gray256.png` | 灰度高程图 | ✅ 重新生成 |
+| `config/*_meta.yaml` | 高度范围参数 | ✅ 需确认范围 |
+| `config/camera_params.yaml` | 相机内参 | ❌ 换相机才改 |
+| `config/out_matrix.yaml` | 相机外参 | ❌ 拆装相机才改 |
+
+---
+
+## 与传统方式对比
+
+| 方式 | 精度 | 效率 | 说明 |
+|------|------|------|------|
+| 卷尺手动量 | ±5~10cm | 慢，需进场 | 不便于频繁操作 |
+| 原硬编码配置 | 依赖手动测量 | 改代码，编译 | 灵活性差 |
+| **PCD→PNG映射(新)** | **±0.5~3cm** | **快，一次生成** | **换场地只需重跑脚本** |
 
 
 
 
 
-需要作修改的文件：
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/config/out_matrix.yaml
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/config/RM2025_Points.yaml
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/config/RM2025.png
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/config/RM2025.pcd
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/fusion/debug_map/debug_map.cpp
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/lidar/dynamic_cloud/src/dynamic_cloud.cpp
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/tdt_vision/calibrate/src/calibrate.cpp
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/tdt_vision/launch
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/tdt_vision/maps/map.yaml
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/tdt_vision/resolve/src/resolve.cpp
-/home/lm/Ubuntu/code/rm/T-DT_Radar_rebuild/src/tdt_vision/utils/src/radar_utils.cpp
+---
+
+## 换场地需改参数总表（按必须改 / 可保留 / 可废弃）
+
+### 🔴 必须改 —— 换场地必须重新配置，不改跑不起来
+
+| 类别 | 文件 | 行 | 内容 | 原因 |
+|------|------|----|------|------|
+| **文件路径** | `localization.cpp` | 33 | `"config/RM2025.pcd"` | 场地先验地图，必换 |
+| | `dynamic_cloud.cpp` | 21 | `"config/RM2025.pcd"` | 同上 |
+| | `debug_map.cpp` | 36 | `"config/RM2025.png"` | 场地底图，必换 |
+| | `resolve.cpp` | 16 | `"config/RM2025.png"` | 同上 |
+| | `maps/map.yaml` | 1 | `RM2025.png` | 同上 |
+| | `radar_utils.cpp` | 118 | `"./config/RM2025_Points.yaml"` | **高程图方案可废弃** |
+| **相机外参** | `radar_utils.cpp` | 21,54,169,192 | `"./config/out_matrix.yaml"` | 重新标定 |
+| | `calibrate.cpp` | 191 | `"./config/out_matrix.yaml"` | 重新标定 |
+| **场地尺寸** | `kalman_filter.cpp` | 200-205 | `28 - x`, `15 - y` | 坐标翻转用 |
+| | `resolve.cpp` | 102-136 | `/ 28`, `/ 15` | 地图绘制 |
+| | `debug_map.cpp` | 50 | `Size(28 * 25, 15 * 25)` | 底图大小 |
+| | `debug_map.cpp` | 76-77,87-88 | `/ 28`, `/ 15` | 点位绘制 |
+| | `debug_map.cpp` | 114-115,125-126 | `28 - x`, `15 - y` | 坐标翻转 |
+| **裁剪范围** | `localization.cpp` | 113 | `x:5~30, y:-10~8, z<7` | 雷达位置不同需重调 |
+| | `dynamic_cloud.cpp` | 210-211 | `x:3~28, y:0~15, z:0~1.4` | 同上 |
+| | `dynamic_cloud.cpp` | 212-216 | 排除区 5 个值 | 角部障碍物不同 |
+| **透视参考点** | `radar_utils.cpp` | 94-97,104-107 | `(12,-6),(16,-6)`等4点 | 决定透视变换基准 |
+| **飞镖区域** | `dynamic_cloud.cpp` | 154-156,217-219 | 飞镖空间立方体 6 个值 | **高程图方案可废弃** |
+| **无人机区域** | `dynamic_cloud.cpp` | 160-176,220-222 | 3个区域共 ~18 个值 | **高程图方案可废弃** |
+| **英雄阈值** | `debug_map.cpp` | 166,169-171,185 | `28-8.668`, `28-20.3`等 | 新场地布局不同，**建议整体删除** |
+
+---
+
+### 🟡 可保留 —— 一般不用改，场地特殊时再调
+
+| 类别 | 文件 | 行 | 内容 | 默认值 | 说明 |
+|------|------|----|------|--------|------|
+| 聚类 | `cluster.cpp` | 42 | setClusterTolerance | 0.25m | 只要车尺寸差不多就不用改 |
+| | `cluster.cpp` | 43-44 | 簇大小范围 | 5~1000 | 同上 |
+| KF匹配 | `filter_plus.h` | 44 | detect_r | 1.0m | 匹配半径 |
+| | `filter_plus.h` | 46 | car_max_speed | 2.5m/s | RM车辆限速 |
+| | `filter_plus.h` | 38 | delete_time | 2.0s | 目标超时删除 |
+| | `filter_plus.h` | 181 | TIME_THRESHOLD | 1.0s | 相机匹配时间窗 |
+| 配准 | `localization.cpp` | 121 | VoxelGrid叶大小 | 0.1m | 计算量/精度平衡 |
+| | `localization.cpp` | 155 | GICP 收敛阈值 | < 0.2 | |
+| | `localization.cpp` | 189 | 累积帧数 | 20 | |
+| | `localization.cpp` | 194 | 球面栅格步长 | 0.1° | |
+| 动态点 | `dynamic_cloud.cpp` | 27 | 体素下采样 | 0.1f | |
+| | `dynamic_cloud.cpp` | 230 | KD-tree距离阈值 | 0.1 | |
+| | `dynamic_cloud.cpp` | 232 | 累积帧数 | 3 | |
+| | `dynamic_cloud.h` | 29 | accumulate_time | 3 | |
+| 报警 | `dynamic_cloud.cpp` | 273 | 飞镖点数阈值 | > 5 | |
+| | `dynamic_cloud.cpp` | 296-304 | 无人机点数阈值 | > 40 | |
+| 高度 | `radar_utils.cpp` | 9 | ARMOR_HEIGHT | 0.15m | 车底盘高度基准 |
+| 显示 | `detect.cpp` | 349 | 显示图大小 | 1536×1125 | 相机分辨率 |
+
+---
+
+### 🟢 可废弃 —— 高程图方案替代后不再需要
+
+| 文件 | 行 | 内容 | 替代方案 |
+|------|----|------|---------|
+| `config/RM2025_Points.yaml` | 全文 | 6个区域的3D多边形顶点 | 高程图直接采样，不用区域划分 |
+| `radar_utils.cpp` | 36-48 | 6个区域对象创建+Height赋值 | 高程图查表 |
+| `radar_utils.cpp` | 75-76 | 高度超0.79m的回退坐标 (19.322,-1.915) | 高程图给出正确高度不存在回退 |
+| `radar_utils.cpp` | 81-89 | `get_height()` 函数（pointPolygonTest） | 改由高程图查高度 |
+| `dynamic_cloud.cpp` | 153-177 | `dart_cloud_filter` / `fly_*_filter` 全部 | 新场地布局空间规则需重写 |
+| `debug_map.cpp` | 158-192 | `hero_count1/2` 进退场检测 | 你们不需要，直接删 |
+| `calibrate.h` | 37-41 | 5个特征点世界坐标 | 只是标定界面的默认值，每个场地自己重新选点 |
 
