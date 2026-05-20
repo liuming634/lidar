@@ -47,7 +47,18 @@ public:
         radar2sentry_pub =
             this->create_publisher<vision_interface::msg::Radar2Sentry>(
                 "/Radar2Sentry", rclcpp::SensorDataQoS());
-        cv::resize(map, map, cv::Size(28 * 25, 15 * 25));
+        // 读取场地尺寸配置
+        try {
+            cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
+            if (fs.isOpened()) {
+                fs["field_width"] >> field_width_;
+                fs["field_height"] >> field_height_;
+                fs.release();
+            }
+        } catch (const cv::Exception& e) {
+            RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
+        }
+        cv::resize(map, map, cv::Size((int)(field_width_ * 25), (int)(field_height_ * 25)));
     }
     void save_match_info(
         const std::shared_ptr<vision_interface::msg::MatchInfo> msg)
@@ -73,8 +84,8 @@ public:
             if (blue_point[i].x * blue_point[i].y &&
                 time - blue_update[i] < 0.5) {
                 cv::Point2f point = cv::Point2f(
-                    clone_map.cols * blue_point[i].x / 28,
-                    clone_map.rows * (15 - blue_point[i].y) / 15);
+                    clone_map.cols * blue_point[i].x / field_width_,
+                    clone_map.rows * (field_height_ - blue_point[i].y) / field_height_);
                 cv::circle(clone_map, point, 10, cv::Scalar(200, 0, 0), -1);
                 cv::putText(clone_map, std::to_string(number),
                             cv::Point(point.x - 6, point.y + 5),
@@ -84,8 +95,8 @@ public:
             if (red_point[i].x * red_point[i].y &&
                 time - red_update[i] < 0.5) {
                 cv::Point2f point = cv::Point2f(
-                    clone_map.cols * red_point[i].x / 28,
-                    clone_map.rows * (15 - red_point[i].y) / 15);
+                    clone_map.cols * red_point[i].x / field_width_,
+                    clone_map.rows * (field_height_ - red_point[i].y) / field_height_);
                 cv::circle(clone_map, point, 10, cv::Scalar(0, 0, 200), -1);
                 cv::putText(clone_map, std::to_string(number),
                             cv::Point(point.x - 6, point.y + 5),
@@ -111,8 +122,8 @@ public:
                     blue_point[i] =
                         cv::Point2f(msg->blue_x[i], msg->blue_y[i]);
                     if (!match_info.self_color) {
-                        blue_point[i] = cv::Point2f(28 - msg->blue_x[i],
-                                                    15 - msg->blue_y[i]);
+                        blue_point[i] = cv::Point2f(field_width_ - msg->blue_x[i],
+                                                    field_height_ - msg->blue_y[i]);
                     }
                     blue_update[i] = time;
                 }
@@ -122,8 +133,8 @@ public:
                     red_point[i] =
                         cv::Point2f(msg->red_x[i], msg->red_y[i]);
                     if (!match_info.self_color) {
-                        red_point[i] = cv::Point2f(28 - msg->red_x[i],
-                                                   15 - msg->red_y[i]);
+                        red_point[i] = cv::Point2f(field_width_ - msg->red_x[i],
+                                                   field_height_ - msg->red_y[i]);
                     }
                     red_update[i] = time;
                 }
@@ -163,12 +174,12 @@ public:
             radar_warn_pub->publish(radar_warn);
         }
         if (match_info.self_color == 0) {
-            if (red_point[0].x > (28 - 8.668)) {
+            if (red_point[0].x > (field_width_ - 8.668)) {
                 hero_count1++;
                 hero_count2--;
-            } else if (red_point[0].x < (28 - 20.3) &&
-                       red_point[0].x > (28 - 25.075) &&
-                       red_point[0].y < 15 && red_point[0].y > 10.3) {
+            } else if (red_point[0].x < (field_width_ - 20.3) &&
+                       red_point[0].x > (field_width_ - 25.075) &&
+                       red_point[0].y < field_height_ && red_point[0].y > 10.3) {
                 hero_count1--;
                 hero_count2++;
             } else {
@@ -182,7 +193,7 @@ public:
                 hero_count2--;
             } else if (blue_point[0].x > 20.3 && blue_point[0].x < 25.075 &&
                        blue_point[0].y > 0 &&
-                       blue_point[0].y < (15 - 10.3)) {
+                       blue_point[0].y < (field_height_ - 10.3)) {
                 hero_count1--;
                 hero_count2++;
             } else {
@@ -282,6 +293,8 @@ public:
     vision_interface::msg::MatchInfo match_info;
     cv::Mat                          map;
     int                              count = 0;
+    float                            field_width_ = 28.0;
+    float                            field_height_ = 15.0;
 };
 }  // namespace tdt_radar
 

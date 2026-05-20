@@ -6,6 +6,7 @@
 #include "dynamic_cloud.h"
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
+#include <opencv2/core.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <rclcpp/time.hpp>
@@ -16,10 +17,30 @@ DynamicCloud::DynamicCloud(const rclcpp::NodeOptions& node_options)
       tf_listener_(tf_buffer_)
 {
     RCLCPP_INFO(this->get_logger(), "Dynamic_cloud Node start");
+
+    // 读取配置文件
+    try {
+        cv::FileStorage fs("./config/params/dynamic_crop.yaml", cv::FileStorage::READ);
+        if (fs.isOpened()) {
+            fs["pcd_path"] >> pcd_path_;
+            fs["kdtree_threshold"] >> kdtree_threshold_;
+            fs["accumulate_frames"] >> accumulate_time;
+            cv::FileNode crop = fs["crop"];
+            crop["x_min"] >> crop_x_min_;
+            crop["x_max"] >> crop_x_max_;
+            crop["y_min"] >> crop_y_min_;
+            crop["y_max"] >> crop_y_max_;
+            crop["z_min"] >> crop_z_min_;
+            crop["z_max"] >> crop_z_max_;
+            fs.release();
+        }
+    } catch (const cv::Exception& e) {
+        RCLCPP_WARN(this->get_logger(), "Failed to read dynamic_crop.yaml, use defaults: %s", e.what());
+    }
+
     auto temp_cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(
         new pcl::PointCloud<pcl::PointXYZ>);
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>("config/RM2025.pcd",
-                                            *temp_cloud) == -1) {
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path_, *temp_cloud) == -1) {
         PCL_ERROR("Couldn't read file map.pcd \n");
     }
     pcl::VoxelGrid<pcl::PointXYZ> sor;
@@ -207,8 +228,8 @@ void DynamicCloud::callback(
     pcl::PointCloud<pcl::PointXYZ> other_filtered_cloud;
     for (size_t i = 0; i < transformed_cloud.size(); i++) {
         auto& point = transformed_cloud.points[i];
-        if (point.x < 3 || point.x > 28 || point.y < 0 || point.y > 15 ||
-            point.z < 0 || point.z > 1.4 ||
+        if (point.x < crop_x_min_ || point.x > crop_x_max_ || point.y < crop_y_min_ || point.y > crop_y_max_ ||
+            point.z < crop_z_min_ || point.z > crop_z_max_ ||
             (point.y > 0 && point.y < 5 && point.x > 25) ||
             ((21.5 - 2.9 / sqrt(2)) < (point.x + point.y) &&
              (point.x + point.y) < (21.5 + 2.9 / sqrt(2)) &&
@@ -227,7 +248,7 @@ void DynamicCloud::callback(
         filtered_cloud.push_back(point);
     }
     pcl::PointCloud<pcl::PointXYZ> dynamic_pointcloud;
-    GetDynamicCloud(filtered_cloud, dynamic_pointcloud, 0.1, 12);
+    GetDynamicCloud(filtered_cloud, dynamic_pointcloud, kdtree_threshold_, 12);
 
     if (accumulate_count < accumulate_time) {
         accumulated_clouds_.push_back(dynamic_pointcloud.makeShared());

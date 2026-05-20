@@ -1,0 +1,26 @@
+# ============================================
+# 高程图元信息
+# 当前场地数据记录，换场地时替换
+# ============================================
+
+# 高程图文件（8bit 灰度，供 C++ 代码读取）
+elevation_image: "config/elevation/2_elevation_gray256.png"
+
+# 场地 PCD 先验点云地图（供 localization / dynamic_cloud 配准使用）
+field_pcd: "config/RM2025.pcd"
+
+# 场地俯瞰图（供 debug_map / resolve 小地图绘制）
+field_map: "config/RM2025.png"
+
+# 高程图覆盖的场地范围（与实际场地尺寸一致）
+field_width: 28.0
+field_height: 15.0
+
+# 图像尺寸（像素）
+image_width: 2916
+image_height: 1505
+
+# 高度映射（8bit 灰度版）
+z_min: -0.187180     # 灰度 0 对应高度 (m)
+z_max: 1.969253      # 灰度 254 对应高度 (m)
+no_data: 255         # 无效像素灰度值

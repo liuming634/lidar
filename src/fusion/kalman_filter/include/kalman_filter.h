@@ -46,5 +46,7 @@ private:
     std::vector<Kalman_filter_plus>  KFs;
     vision_interface::msg::RadarWarn lidar_detect;
     vision_interface::msg::MatchInfo match_info;
+    float field_width_ = 28.0;
+    float field_height_ = 15.0;
 };
 }  // namespace tdt_radar

@@ -33,6 +33,19 @@ Resolve::Resolve(const rclcpp::NodeOptions& node_options)
                       std::placeholders::_1));
     pub_radar = this->create_publisher<vision_interface::msg::DetectResult>(
         "resolve_result", rclcpp::SensorDataQoS());
+
+    // 读取场地尺寸配置
+    try {
+        cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
+        if (fs.isOpened()) {
+            fs["field_width"] >> field_width_;
+            fs["field_height"] >> field_height_;
+            fs.release();
+        }
+    } catch (const cv::Exception& e) {
+        RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
+    }
+
     TDT_INFO("Load radar resolve node success!");
 }
 
@@ -60,7 +73,7 @@ void Resolve::callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
         new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointXYZ send_point;
     send_point.x = center_point.x;
-    send_point.y = 15 - center_point.y;
+    send_point.y = field_height_ - center_point.y;
     std::cout << center_point << std::endl;
     send_point.z = 1;
     cloud->points.push_back(send_point);
@@ -85,7 +98,7 @@ void Resolve::DetectCallback(
         blue_point.y = msg->blue_y[i];
         if (blue_point.x * blue_point.y) {
             auto center_point = parser_->parse(blue_point);
-            center_point.y = 15 + center_point.y;
+            center_point.y = field_height_ + center_point.y;
             send_data.blue_x[i] = center_point.x;
             send_data.blue_y[i] = center_point.y;
             pcl::PointXYZRGBA send_point;
@@ -99,13 +112,13 @@ void Resolve::DetectCallback(
             cloud->points.push_back(send_point);
             cv::circle(
                 Map_clone,
-                cv::Point((Map_clone.cols * center_point.x) / 28,
-                          Map_clone.rows * (15 - center_point.y) / 15),
+                cv::Point((Map_clone.cols * center_point.x) / field_width_,
+                          Map_clone.rows * (field_height_ - center_point.y) / field_height_),
                 20, cv::Scalar(200, 0, 0), -1);
             cv::putText(
                 Map_clone, std::to_string(i + 1),
-                cv::Point((Map_clone.cols * center_point.x) / 28 - 10,
-                          Map_clone.rows * (15 - center_point.y) / 15 + 10),
+                cv::Point((Map_clone.cols * center_point.x) / field_width_ - 10,
+                          Map_clone.rows * (field_height_ - center_point.y) / field_height_ + 10),
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
         }
         cv::Point2f red_point;
@@ -113,7 +126,7 @@ void Resolve::DetectCallback(
         red_point.y = msg->red_y[i];
         if (red_point.x * red_point.y) {
             auto center_point = parser_->parse(red_point);
-            center_point.y = 15 + center_point.y;
+            center_point.y = field_height_ + center_point.y;
             send_data.red_x[i] = center_point.x;
             send_data.red_y[i] = center_point.y;
             pcl::PointXYZRGBA send_point;
@@ -127,13 +140,13 @@ void Resolve::DetectCallback(
             cloud->points.push_back(send_point);
             cv::circle(
                 Map_clone,
-                cv::Point((Map_clone.cols * center_point.x) / 28,
-                          Map_clone.rows * (15 - center_point.y) / 15),
+                cv::Point((Map_clone.cols * center_point.x) / field_width_,
+                          Map_clone.rows * (field_height_ - center_point.y) / field_height_),
                 20, cv::Scalar(0, 0, 200), -1);
             cv::putText(
                 Map_clone, std::to_string(i + 1),
-                cv::Point((Map_clone.cols * center_point.x) / 28 - 10,
-                          Map_clone.rows * (15 - center_point.y) / 15 + 10),
+                cv::Point((Map_clone.cols * center_point.x) / field_width_ - 10,
+                          Map_clone.rows * (field_height_ - center_point.y) / field_height_ + 10),
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
         }
     }

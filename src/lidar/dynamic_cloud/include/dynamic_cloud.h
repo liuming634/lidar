@@ -26,6 +26,16 @@ public:
     ~DynamicCloud() {}
 
 private:
+    // 配置文件读取的数值
+    float        crop_x_min_ = 3.0;
+    float        crop_x_max_ = 28.0;
+    float        crop_y_min_ = 0.0;
+    float        crop_y_max_ = 15.0;
+    float        crop_z_min_ = 0.0;
+    float        crop_z_max_ = 1.4;
+    float        kdtree_threshold_ = 0.1;
+    std::string  pcd_path_ = "config/RM2025.pcd";
+
     int                                              accumulate_time = 3;
     int                                              accumulate_count = 0;
     pcl::PointCloud<pcl::PointXYZ>::Ptr              map_cloud;

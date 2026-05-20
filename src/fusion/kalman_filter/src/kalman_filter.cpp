@@ -42,6 +42,18 @@ KalmanFilter::KalmanFilter(const rclcpp::NodeOptions& node_options)
                       std::placeholders::_1));
 
     RCLCPP_INFO(this->get_logger(), "Kalman_filter_Node has been started.");
+
+    // 读取场地尺寸配置
+    try {
+        cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
+        if (fs.isOpened()) {
+            fs["field_width"] >> field_width_;
+            fs["field_height"] >> field_height_;
+            fs.release();
+        }
+    } catch (const cv::Exception& e) {
+        RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
+    }
 }
 
 // 接收比赛信息（自方颜色等）
@@ -197,12 +209,12 @@ void KalmanFilter::callback(
     if (match_info.self_color == 0) {
         for (int i = 0; i < 6; i++) {
             if (detect_msg.blue_x[i] != 0 && detect_msg.blue_y[i] != 0) {
-                detect_msg.blue_x[i] = 28 - detect_msg.blue_x[i];
-                detect_msg.blue_y[i] = 15 - detect_msg.blue_y[i];
+                detect_msg.blue_x[i] = field_width_ - detect_msg.blue_x[i];
+                detect_msg.blue_y[i] = field_height_ - detect_msg.blue_y[i];
             }
             if (detect_msg.red_x[i] != 0 && detect_msg.red_y[i] != 0) {
-                detect_msg.red_x[i] = 28 - detect_msg.red_x[i];
-                detect_msg.red_y[i] = 15 - detect_msg.red_y[i];
+                detect_msg.red_x[i] = field_width_ - detect_msg.red_x[i];
+                detect_msg.red_y[i] = field_height_ - detect_msg.red_y[i];
             }
         }
     }

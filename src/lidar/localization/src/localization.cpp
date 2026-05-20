@@ -20,6 +20,7 @@
 #include <pcl/registration/icp.h>
 #include <pcl/registration/registration.h>
 #include <boost/shared_ptr.hpp>
+#include <opencv2/core.hpp>
 
 namespace tdt_radar {
     struct Grid {
@@ -30,11 +31,30 @@ class Localization : public rclcpp::Node {
 public:
     // 构造函数：加载场地PCD地图，订阅/livox/lidar，每10秒发布一次地图点云用于调试
     Localization(const rclcpp::NodeOptions& node_options) : Node("localization", node_options) {
-        std::string target_pcd_file = "config/RM2025.pcd";
+        // 读取配置文件
+        try {
+            cv::FileStorage fs("./config/params/gicp_crop.yaml", cv::FileStorage::READ);
+            if (fs.isOpened()) {
+                fs["pcd_path"] >> pcd_path_;
+                fs["voxel_leaf_size"] >> voxel_leaf_size_;
+                fs["fitness_threshold"] >> fitness_threshold_;
+                fs["accumulate_frames"] >> accumulate_time;
+                fs["grid_degrees"] >> gridSizeDegrees;
+                cv::FileNode crop = fs["crop"];
+                crop["x_min"] >> crop_x_min_;
+                crop["x_max"] >> crop_x_max_;
+                crop["y_min"] >> crop_y_min_;
+                crop["y_max"] >> crop_y_max_;
+                crop["z_max"] >> crop_z_max_;
+                fs.release();
+            }
+        } catch (const cv::Exception& e) {
+            RCLCPP_WARN(this->get_logger(), "Failed to read gicp_crop.yaml, use defaults: %s", e.what());
+        }
         // 加载场地PCD作为配准的目标点云
         target_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>());
-        if (pcl::io::loadPCDFile(target_pcd_file, *target_cloud_)) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to load %s", target_pcd_file.c_str());
+        if (pcl::io::loadPCDFile(pcd_path_, *target_cloud_)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to load %s", pcd_path_.c_str());
             return;
         }
 
@@ -107,10 +127,10 @@ private:
             }
         }
 
-        //取x(0,30) , y(-10,10)的点云
+        //取有效范围内的点云
         pcl::PointCloud<pcl::PointXYZ>::Ptr final_cloud(new pcl::PointCloud<pcl::PointXYZ>());
         for(auto point : result->points){
-            if(point.x > 5 && point.x < 30 && point.y > -10 && point.y < 8&&point.z<7){
+            if(point.x > crop_x_min_ && point.x < crop_x_max_ && point.y > crop_y_min_ && point.y < crop_y_max_ && point.z < crop_z_max_){
                 final_cloud->push_back(point);
             }
         }
@@ -118,7 +138,7 @@ private:
         // 下采样
         pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::VoxelGrid<pcl::PointXYZ> voxelgrid;
-        voxelgrid.setLeafSize(0.1f, 0.1f, 0.1f);
+        voxelgrid.setLeafSize(voxel_leaf_size_, voxel_leaf_size_, voxel_leaf_size_);
 
         voxelgrid.setInputCloud(target_cloud_);
         voxelgrid.filter(*downsampled);
@@ -152,7 +172,7 @@ private:
         // std::cout << "calib time   : " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "[msec]" << std::endl;
         RCLCPP_WARN(this->get_logger(), "calib result : %f", registration->getFitnessScore());
 
-        if(registration->getFitnessScore()<0.2){
+        if(registration->getFitnessScore() < fitness_threshold_){
         has_aligned_ = true;}
 
         //打印变换矩阵
@@ -178,6 +198,16 @@ private:
         tf_broadcaster_->sendTransform(transform_stamped);
     }
     
+    // 配置文件读取的数值
+    float crop_x_min_ = 5.0;
+    float crop_x_max_ = 30.0;
+    float crop_y_min_ = -10.0;
+    float crop_y_max_ = 8.0;
+    float crop_z_max_ = 7.0;
+    float voxel_leaf_size_ = 0.1f;
+    float fitness_threshold_ = 0.2;
+    std::string pcd_path_ = "config/RM2025.pcd";
+
     bool has_aligned_ = false;
     Eigen::Matrix4f transform;
     std::string target_pcd_file_;

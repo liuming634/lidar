@@ -39,6 +39,8 @@ public:
     int     markers[6];
     int16_t match_time;
     uint8_t robot_hp[16];
+    float   field_width_ = 28.0;
+    float   field_height_ = 15.0;
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub;

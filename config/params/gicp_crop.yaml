@@ -4,6 +4,9 @@
 # 取决于雷达安装位置和场地大小
 # ============================================
 
+# 场地 PCD 先验点云地图路径
+pcd_path: "config/RM2025.pcd"
+
 crop:
   x_min: 5.0
   x_max: 30.0
@@ -12,7 +15,7 @@ crop:
   z_max: 7.0
 
 # 配准参数
-voxel_leaf_size: 0.1       # 体素下采样叶大小 (m)
-fitness_threshold: 0.2     # GICP 收敛阈值
-accumulate_frames: 20      # 配准前累积帧数
-grid_degrees: 0.1          # 球面栅格滤波步长 (°)
+voxel_leaf_size: 0.1
+fitness_threshold: 0.2
+accumulate_frames: 20
+grid_degrees: 0.1
