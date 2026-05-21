@@ -13,7 +13,8 @@ namespace tdt_radar
     class Parser_Points
     {
     public:
-        Parser_Points(const std::string &points_name);
+        
+        Parser_Points(const std::string& points_name);
         float return_height(cv::Point2f &input_point);
         void Update();
         void World2Camera();
@@ -31,6 +32,7 @@ namespace tdt_radar
     class parser
     {
     public:
+        float get_elevation(float field_x, float field_y);
         parser();
         void Change_Matrix();
         cv::Point2f parse(cv::Point2f &input_point);
@@ -42,6 +44,14 @@ namespace tdt_radar
         cv::Mat camera_matrix;
         cv::Mat dist_coeffs;
         std::map <std::string,Parser_Points*> points_map;
+
+        // 高程图配置（从 elevation_meta.yaml 读取）
+        cv::Mat elevation_map_;
+        float   field_width_ = 28.0f;
+        float   field_height_ = 15.0f;
+        float   z_min_ = -0.187180f;
+        float   z_max_ = 1.969253f;
+        int     no_data_ = 255;
     };
 }
 #endif //RADAR_UTILS_H

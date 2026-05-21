@@ -193,30 +193,30 @@ for cluster_x, cluster_y, cluster_z in representative_points:
 | | `dynamic_cloud.cpp` | 21 | `"config/RM2025.pcd"` | 同上 |
 | | `debug_map.cpp` | 36 | `"config/RM2025.png"` | 场地底图，必换 |
 | | `resolve.cpp` | 16 | `"config/RM2025.png"` | 同上 |
-| | `maps/map.yaml` | 1 | `RM2025.png` | 同上 |
-| | `radar_utils.cpp` | 118 | `"./config/RM2025_Points.yaml"` | **高程图方案可废弃** |
-| **相机外参** | `radar_utils.cpp` | 21,54,169,192 | `"./config/out_matrix.yaml"` | 重新标定 |
-| | `calibrate.cpp` | 191 | `"./config/out_matrix.yaml"` | 重新标定 |
 | **场地尺寸** | `kalman_filter.cpp` | 200-205 | `28 - x`, `15 - y` | 坐标翻转用 |
 | | `resolve.cpp` | 102-136 | `/ 28`, `/ 15` | 地图绘制 |
 | | `debug_map.cpp` | 50 | `Size(28 * 25, 15 * 25)` | 底图大小 |
 | | `debug_map.cpp` | 76-77,87-88 | `/ 28`, `/ 15` | 点位绘制 |
 | | `debug_map.cpp` | 114-115,125-126 | `28 - x`, `15 - y` | 坐标翻转 |
 | **裁剪范围** | `localization.cpp` | 113 | `x:5~30, y:-10~8, z<7` | 雷达位置不同需重调 |
+| | `maps/map.yaml` | 1 | `RM2025.png` | 同上 |
+| | `radar_utils.cpp` | 118 | `"./config/RM2025_Points.yaml"` | **高程图方案可废弃** |
+| **相机外参** | `radar_utils.cpp` | 21,54,169,192 | `"./config/out_matrix.yaml"` | 重新标定 |
+| | `calibrate.cpp` | 191 | `"./config/out_matrix.yaml"` | 重新标定 |
 | | `dynamic_cloud.cpp` | 210-211 | `x:3~28, y:0~15, z:0~1.4` | 同上 |
 | | `dynamic_cloud.cpp` | 212-216 | 排除区 5 个值 | 角部障碍物不同 |
 | **透视参考点** | `radar_utils.cpp` | 94-97,104-107 | `(12,-6),(16,-6)`等4点 | 决定透视变换基准 |
-| **飞镖区域** | `dynamic_cloud.cpp` | 154-156,217-219 | 飞镖空间立方体 6 个值 | **高程图方案可废弃** |
+| **飞镖区域** | `dynamic_cloud.cpp` | 154-156,217-219 | 飞镖空间立方体 6 
+
+| 类别 | 文件 | 行 | 内容 | 默认值 | 说明 |
+|------|------|----|------|--------|------|
+| 聚类 | `cluster.cpp` | 42 | setClust个值 | **高程图方案可废弃** |
 | **无人机区域** | `dynamic_cloud.cpp` | 160-176,220-222 | 3个区域共 ~18 个值 | **高程图方案可废弃** |
 | **英雄阈值** | `debug_map.cpp` | 166,169-171,185 | `28-8.668`, `28-20.3`等 | 新场地布局不同，**建议整体删除** |
 
 ---
 
-### 🟡 可保留 —— 一般不用改，场地特殊时再调
-
-| 类别 | 文件 | 行 | 内容 | 默认值 | 说明 |
-|------|------|----|------|--------|------|
-| 聚类 | `cluster.cpp` | 42 | setClusterTolerance | 0.25m | 只要车尺寸差不多就不用改 |
+### 🟡 可保留 —— 一般不用改，场地特殊时再调erTolerance | 0.25m | 只要车尺寸差不多就不用改 |
 | | `cluster.cpp` | 43-44 | 簇大小范围 | 5~1000 | 同上 |
 | KF匹配 | `filter_plus.h` | 44 | detect_r | 1.0m | 匹配半径 |
 | | `filter_plus.h` | 46 | car_max_speed | 2.5m/s | RM车辆限速 |

@@ -5,6 +5,12 @@
 // Parser_Points类: 从RM2025_Points.yaml读取各区域(道路/要塞等)的3D多边形顶点
 //   通过World2Camera()投影到图像平面，用于点归属判断(pointPolygonTest)和UI绘制
 #include "radar_utils.h"
+#include <iostream>
+#include <vector>
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
+using namespace std;
 
 #define ARMOR_HEIGHT 0.15
 namespace tdt_radar {
@@ -33,6 +39,31 @@ parser::parser()
     std::cout << "Resolve camera" << camera_matrix << std::endl;
     std::cout << "Resolve dist" << dist_coeffs << std::endl;
 
+    // 读取高程图配置
+    {
+        cv::FileStorage fs_ele;
+        fs_ele.open("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
+        if (fs_ele.isOpened()) {
+            std::string ele_path;
+            fs_ele["elevation_image"] >> ele_path;
+            fs_ele["field_width"] >> field_width_;
+            fs_ele["field_height"] >> field_height_;
+            fs_ele["z_min"] >> z_min_;
+            fs_ele["z_max"] >> z_max_;
+            fs_ele["no_data"] >> no_data_;
+            fs_ele.release();
+            elevation_map_ = cv::imread(ele_path, cv::IMREAD_GRAYSCALE);
+            if (elevation_map_.empty())
+                std::cerr << "[parser] 加载高程图失败: " << ele_path << std::endl;
+            else
+                std::cout << "[parser] 加载高程图: " << ele_path << " ("
+                          << elevation_map_.cols << "x" << elevation_map_.rows << ")" << std::endl;
+        } else {
+            std::cerr << "[parser] 无法打开 elevation_meta.yaml，使用默认参数" << std::endl;
+            elevation_map_ = cv::imread("./config/elevation/2_elevation_gray256.png", cv::IMREAD_GRAYSCALE);
+        }
+    }
+
     points_map["Middle_Line"] = new Parser_Points("Middle_Line");
     points_map["Left_Road"] = new Parser_Points("Left_Road");
     points_map["Right_Road"] = new Parser_Points("Right_Road");
@@ -48,6 +79,35 @@ parser::parser()
     points_map["Enemy_Fortress"]->Height = 0.15;
 }
 // 更新外参（标定后重新加载），并更新所有区域点
+//我这里接受相对于这个图片的位置的像素坐标
+float parser::get_elevation(float field_x, float field_y)
+{
+    if (elevation_map_.empty()) return 0;
+
+    int cx = int(elevation_map_.cols * field_x / field_width_);
+    int cy = int(elevation_map_.rows * (field_y + field_height_) / field_height_);
+
+    int x_s = std::max(0, cx - 5);
+    int x_e = std::min(elevation_map_.cols - 1, cx + 5);
+    int y_s = std::max(0, cy - 5);
+    int y_e = std::min(elevation_map_.rows - 1, cy + 5);
+
+    int sum = 0, cnt = 0;
+    for (int r = y_s; r <= y_e; r++) {
+        for (int c = x_s; c <= x_e; c++) {
+            uchar v = elevation_map_.at<uchar>(r, c);
+            if ((int)v != no_data_) {
+                sum += v;
+                cnt++;
+            }
+        }
+    }
+
+    if (cnt == 0) return 0;
+    float avg = float(sum) / cnt;
+    return z_min_ + (avg / 254.0f) * (z_max_ - z_min_);
+}
+
 void parser::Change_Matrix()
 {
     cv::FileStorage fs;
@@ -68,23 +128,17 @@ void parser::draw_ui(cv::Mat& img)
                       cv::Scalar(255, 255, 255));
     }
 }
-// 核心解算函数：先判断点落在哪个区域获取高度，再通过透视变换得到场地2D坐标
+// 核心解算函数：先低高度算粗略 (x, y)，再用高程图查真实高度迭代一次
 cv::Point2f parser::parse(cv::Point2f& input_point)
 {
-    float temp_height = get_height(input_point);
-    if (temp_height > 0.79) {
-        return cv::Point2f(19.322, -1.915);
-    }
-    return get_2d(input_point, temp_height);
+    cv::Point2f rough = get_2d(input_point, 0);
+    float real_height = get_elevation(rough.x, rough.y);
+    return get_2d(input_point, real_height);
 }
 // 判断2D点落在哪个场地区域，返回对应高度
 float parser::get_height(cv::Point2f& input_point)
 {
-    for (auto& points : points_map) {
-        if (points.second->return_height(input_point)) {
-            return points.second->Height;
-        }
-    }
+    //这里直接返回0,不使用这个方案
     return 0;
 }
 // 透视变换解算：用PNP投影得到图像和场地间的映射矩阵，再利用perspectiveTransform得到场地坐标

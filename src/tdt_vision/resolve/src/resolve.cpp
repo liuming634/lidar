@@ -3,7 +3,10 @@
 //       蓝色系坐标映射到场地右半区(y+15)，红色映射后保持原y
 //       发布两种结果：DetectResult(二维坐标)和PointCloud2点云+地图可视化
 #include "resolve.h"
-
+#include <iostream>
+#include <opencv2/opencv.hpp>
+using namespace std;
+using namespace cv;
 #define TDT_INFO(msg) std::cout << msg << std::endl
 
 namespace tdt_radar {
@@ -88,7 +91,7 @@ void Resolve::callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
     send_point.x = center_point.x;
     send_point.y = field_height_ - center_point.y;
     std::cout << center_point << std::endl;
-    send_point.z = 1;
+    send_point.z = parser_->get_elevation(center_point.x, center_point.y);
     cloud->points.push_back(send_point);
     sensor_msgs::msg::PointCloud2 output;
     pcl::toROSMsg(*cloud, output);
