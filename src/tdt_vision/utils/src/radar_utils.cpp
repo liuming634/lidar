@@ -75,19 +75,26 @@ parser::parser()
         }
     }
 
-    points_map["Middle_Line"] = new Parser_Points("Middle_Line");
-    points_map["Left_Road"] = new Parser_Points("Left_Road");
-    points_map["Right_Road"] = new Parser_Points("Right_Road");
-    points_map["Enemy_Buff"] = new Parser_Points("Enemy_Buff");
-    points_map["Self_Fortress"] = new Parser_Points("Self_Fortress");
-    points_map["Enemy_Fortress"] = new Parser_Points("Enemy_Fortress");
-
-    points_map["Middle_Line"]->Height = 0.3;
-    points_map["Left_Road"]->Height = 0.2;
-    points_map["Right_Road"]->Height = 0.2;
-    points_map["Enemy_Buff"]->Height = 0.6;
-    points_map["Self_Fortress"]->Height = 0.15;
-    points_map["Enemy_Fortress"]->Height = 0.15;
+    // 加载多边形边框（仅用于 draw_ui 可视化，不影响高度计算）
+    // 如果 RM2025_Points.yaml 不存在，直接跳过，不报错
+    {
+        cv::FileStorage fs_check("./config/RM2025_Points.yaml", cv::FileStorage::READ);
+        if (fs_check.isOpened()) {
+            fs_check.release();
+            const char* polygon_regions[] = {
+                "Middle_Line", "Left_Road", "Right_Road",
+                "Enemy_Buff", "Self_Fortress", "Enemy_Fortress"
+            };
+            for (int i = 0; i < 6; i++) {
+                auto* pp = new Parser_Points(polygon_regions[i]);
+                if (!pp->Points_3D.empty()) {
+                    points_map[polygon_regions[i]] = pp;
+                } else {
+                    delete pp;
+                }
+            }
+        }
+    }
 }
 // 更新外参（标定后重新加载），并更新所有区域点
 //我这里接受相对于这个图片的位置的像素坐标
@@ -131,7 +138,7 @@ void parser::Change_Matrix()
         points.second->Update();
     }
 }
-// 在图像上绘制场地各区域的多边形边框
+// 在图像上绘制场地各区域的多边形边框（仅在 points_map 非空时绘制）
 void parser::draw_ui(cv::Mat& img)
 {
     for (auto& points : points_map) {
@@ -180,16 +187,16 @@ Parser_Points::ReadPoints(const std::string& points_name)
                        cv::FileStorage::READ);  // 打开YAML文件
 
     if (!fs.isOpened()) {
-        std::cout << "无法打开文件" << std::endl;
-        exit(-1);
+        std::cout << "[Parser_Points] 无法打开 RM2025_Points.yaml" << std::endl;
+        return {};
     }
 
     std::vector<cv::Point3f> points;
 
     cv::FileNode pointsNode = fs[points_name];
     if (pointsNode.type() != cv::FileNode::SEQ) {
-        std::cout << "points节点不是序列" << std::endl;
-        exit(-1);
+        std::cout << "[Parser_Points] " << points_name << " 不是序列" << std::endl;
+        return {};
     }
 
     for (auto&& it : pointsNode) {
