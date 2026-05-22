@@ -33,14 +33,15 @@ public:
     Localization(const rclcpp::NodeOptions& node_options) : Node("localization", node_options) {
         // 读取配置文件
         try {
-            cv::FileStorage fs("./config/params/gicp_crop.yaml", cv::FileStorage::READ);
+            cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
             if (fs.isOpened()) {
-                fs["pcd_path"] >> pcd_path_;
-                fs["voxel_leaf_size"] >> voxel_leaf_size_;
-                fs["fitness_threshold"] >> fitness_threshold_;
-                fs["accumulate_frames"] >> accumulate_time;
-                fs["grid_degrees"] >> gridSizeDegrees;
-                cv::FileNode crop = fs["crop"];
+                cv::FileNode gicp = fs["gicp"];
+                gicp["pcd_path"] >> pcd_path_;
+                gicp["voxel_leaf_size"] >> voxel_leaf_size_;
+                gicp["fitness_threshold"] >> fitness_threshold_;
+                gicp["accumulate_frames"] >> accumulate_time;
+                gicp["grid_degrees"] >> gridSizeDegrees;
+                cv::FileNode crop = gicp["crop"];
                 crop["x_min"] >> crop_x_min_;
                 crop["x_max"] >> crop_x_max_;
                 crop["y_min"] >> crop_y_min_;
@@ -49,7 +50,7 @@ public:
                 fs.release();
             }
         } catch (const cv::Exception& e) {
-            RCLCPP_WARN(this->get_logger(), "Failed to read gicp_crop.yaml, use defaults: %s", e.what());
+            RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use defaults: %s", e.what());
         }
         // 加载场地PCD作为配准的目标点云
         target_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>());

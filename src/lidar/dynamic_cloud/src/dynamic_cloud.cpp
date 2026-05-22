@@ -20,12 +20,13 @@ DynamicCloud::DynamicCloud(const rclcpp::NodeOptions& node_options)
 
     // 读取配置文件
     try {
-        cv::FileStorage fs("./config/params/dynamic_crop.yaml", cv::FileStorage::READ);
+        cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
         if (fs.isOpened()) {
-            fs["pcd_path"] >> pcd_path_;
-            fs["kdtree_threshold"] >> kdtree_threshold_;
-            fs["accumulate_frames"] >> accumulate_time;
-            cv::FileNode crop = fs["crop"];
+            cv::FileNode dyn = fs["dynamic"];
+            dyn["pcd_path"] >> pcd_path_;
+            dyn["kdtree_threshold"] >> kdtree_threshold_;
+            dyn["accumulate_frames"] >> accumulate_time;
+            cv::FileNode crop = dyn["crop"];
             crop["x_min"] >> crop_x_min_;
             crop["x_max"] >> crop_x_max_;
             crop["y_min"] >> crop_y_min_;
@@ -35,7 +36,7 @@ DynamicCloud::DynamicCloud(const rclcpp::NodeOptions& node_options)
             fs.release();
         }
     } catch (const cv::Exception& e) {
-        RCLCPP_WARN(this->get_logger(), "Failed to read dynamic_crop.yaml, use defaults: %s", e.what());
+        RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use defaults: %s", e.what());
     }
 
     auto temp_cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(

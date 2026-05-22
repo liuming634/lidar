@@ -12,7 +12,6 @@
 using namespace cv;
 using namespace std;
 
-#define ARMOR_HEIGHT 0.15
 namespace tdt_radar {
 bool isPointInsideScreen(cv::Point2f point, int screenWidth,
                          int screenHeight)
@@ -39,19 +38,31 @@ parser::parser()
     std::cout << "Resolve camera" << camera_matrix << std::endl;
     std::cout << "Resolve dist" << dist_coeffs << std::endl;
 
-    // 读取高程图配置
+    // 读取统一配置文件
     {
-        cv::FileStorage fs_ele;
-        fs_ele.open("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
-        if (fs_ele.isOpened()) {
+        cv::FileStorage fs_rc;
+        fs_rc.open("./config/radar_config.yaml", cv::FileStorage::READ);
+        if (fs_rc.isOpened()) {
+            // 场地基本尺寸
+            fs_rc["field_width"] >> field_width_;
+            fs_rc["field_height"] >> field_height_;
+
+            // 透视变换参考点
+            cv::FileNode per = fs_rc["perspective"];
+            per["armor_height"] >> armor_height_;
+            cv::FileNode r1 = per["ref1"]; r1["x"] >> ref_x_[0]; r1["y"] >> ref_y_[0];
+            cv::FileNode r2 = per["ref2"]; r2["x"] >> ref_x_[1]; r2["y"] >> ref_y_[1];
+            cv::FileNode r3 = per["ref3"]; r3["x"] >> ref_x_[2]; r3["y"] >> ref_y_[2];
+            cv::FileNode r4 = per["ref4"]; r4["x"] >> ref_x_[3]; r4["y"] >> ref_y_[3];
+
+            // 高程图
             std::string ele_path;
-            fs_ele["elevation_image"] >> ele_path;
-            fs_ele["field_width"] >> field_width_;
-            fs_ele["field_height"] >> field_height_;
-            fs_ele["z_min"] >> z_min_;
-            fs_ele["z_max"] >> z_max_;
-            fs_ele["no_data"] >> no_data_;
-            fs_ele.release();
+            fs_rc["elevation"]["image"] >> ele_path;
+            fs_rc["elevation"]["z_min"] >> z_min_;
+            fs_rc["elevation"]["z_max"] >> z_max_;
+            fs_rc["elevation"]["no_data"] >> no_data_;
+            fs_rc.release();
+
             elevation_map_ = cv::imread(ele_path, cv::IMREAD_GRAYSCALE);
             if (elevation_map_.empty())
                 std::cerr << "[parser] 加载高程图失败: " << ele_path << std::endl;
@@ -59,7 +70,7 @@ parser::parser()
                 std::cout << "[parser] 加载高程图: " << ele_path << " ("
                           << elevation_map_.cols << "x" << elevation_map_.rows << ")" << std::endl;
         } else {
-            std::cerr << "[parser] 无法打开 elevation_meta.yaml，使用默认参数" << std::endl;
+            std::cerr << "[parser] 无法打开 radar_config.yaml，使用默认参数" << std::endl;
             elevation_map_ = cv::imread("./config/elevation/2_elevation_gray256.png", cv::IMREAD_GRAYSCALE);
         }
     }
@@ -145,20 +156,16 @@ float parser::get_height(cv::Point2f& input_point)
 cv::Point2f parser::get_2d(cv::Point2f& input_point, float height)
 {
     std::vector<cv::Point3f> world_points;
-    world_points.push_back(cv::Point3f(12, -6, ARMOR_HEIGHT + height));
-    world_points.push_back(cv::Point3f(16, -6, ARMOR_HEIGHT + height));
-    world_points.push_back(cv::Point3f(16, -8, ARMOR_HEIGHT + height));
-    world_points.push_back(cv::Point3f(12, -8, ARMOR_HEIGHT + height));
+    for (int i = 0; i < 4; i++) {
+        world_points.push_back(cv::Point3f(ref_x_[i], ref_y_[i], armor_height_ + height));
+    }
     std::vector<cv::Point2f> image_points;
     cv::projectPoints(world_points, world_rvec, world_tvec, camera_matrix,
                       dist_coeffs, image_points);
-    for (auto& point : image_points) {
-    }
     std::vector<cv::Point2f> world_points2D;
-    world_points2D.push_back(cv::Point2f(12, -6));
-    world_points2D.push_back(cv::Point2f(16, -6));
-    world_points2D.push_back(cv::Point2f(16, -8));
-    world_points2D.push_back(cv::Point2f(12, -8));
+    for (int i = 0; i < 4; i++) {
+        world_points2D.push_back(cv::Point2f(ref_x_[i], ref_y_[i]));
+    }
     cv::Mat Perspective_matrix =
         cv::getPerspectiveTransform(image_points, world_points2D);
     cv::Mat srcPointMat(1, 1, CV_32FC2);

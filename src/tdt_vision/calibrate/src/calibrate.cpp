@@ -25,6 +25,30 @@ Calibrate::Calibrate(const rclcpp::NodeOptions& options)
     fs["dist_coeffs"] >> dist_coeffs;
     fs.release();
 
+    // 读取标定参考点（从统一配置文件）
+    {
+        cv::FileStorage fs_rc("./config/radar_config.yaml", cv::FileStorage::READ);
+        if (fs_rc.isOpened()) {
+            auto read_cal = [&](const char* name) {
+                cv::FileNode p = fs_rc["calibrate_points"][name];
+                return cv::Point3f((float)p["x"], (float)p["y"], (float)p["z"]);
+            };
+            self_FORTRESS = read_cal("self_fortress");
+            self_Tower    = read_cal("self_tower");
+            enemy_Base    = read_cal("enemy_base");
+            enemy_Tower   = read_cal("enemy_tower");
+            enemy_High    = read_cal("enemy_high");
+            fs_rc.release();
+        } else {
+            RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use hardcoded defaults");
+            self_FORTRESS = cv::Point3f(5.471, -7.5, 0.0);
+            self_Tower    = cv::Point3f(10.936, -11.161, 0.868);
+            enemy_Base    = cv::Point3f(25.49, -7.5, 1.24524);
+            enemy_Tower   = cv::Point3f(16.925, -3.625, 1.745);
+            enemy_High    = cv::Point3f(20.20, -10.8, 0.8);
+        }
+    }
+
     real_points.push_back(self_FORTRESS);
     real_points.push_back(self_Tower);
     real_points.push_back(enemy_Base);

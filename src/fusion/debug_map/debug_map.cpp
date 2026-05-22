@@ -37,14 +37,14 @@ public:
         std::string map_path = "config/RM2025.png";
         int display_scale = 25;
         try {
-            cv::FileStorage fs("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
+            cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
             if (fs.isOpened()) {
                 fs["field_map"] >> map_path;
                 fs["display_scale"] >> display_scale;
                 fs.release();
             }
         } catch (const cv::Exception& e) {
-            RCLCPP_WARN(this->get_logger(), "Failed to read elevation_meta.yaml, use default: %s", e.what());
+            RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use default: %s", e.what());
         }
         map = cv::imread(map_path);
         match_info_sub =
@@ -62,14 +62,14 @@ public:
                 "/Radar2Sentry", rclcpp::SensorDataQoS());
         // 读取场地尺寸配置
         try {
-            cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
+            cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
             if (fs.isOpened()) {
                 fs["field_width"] >> field_width_;
                 fs["field_height"] >> field_height_;
                 fs.release();
             }
         } catch (const cv::Exception& e) {
-            RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
+            RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use defaults: %s", e.what());
         }
         if (display_scale > 0) {
             cv::resize(map, map, cv::Size((int)(field_width_ * display_scale), (int)(field_height_ * display_scale)));

@@ -20,13 +20,15 @@ Resolve::Resolve(const rclcpp::NodeOptions& node_options)
     {
         std::string map_path = "config/RM2025.png";
         try {
-            cv::FileStorage fs("./config/params/elevation_meta.yaml", cv::FileStorage::READ);
+            cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
             if (fs.isOpened()) {
                 fs["field_map"] >> map_path;
+                fs["field_width"] >> field_width_;
+                fs["field_height"] >> field_height_;
                 fs.release();
             }
         } catch (const cv::Exception& e) {
-            RCLCPP_WARN(this->get_logger(), "Failed to read elevation_meta.yaml, use default map: %s", e.what());
+            RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use default: %s", e.what());
         }
         minimap = cv::imread(map_path);
     }
@@ -49,18 +51,6 @@ Resolve::Resolve(const rclcpp::NodeOptions& node_options)
                       std::placeholders::_1));
     pub_radar = this->create_publisher<vision_interface::msg::DetectResult>(
         "resolve_result", rclcpp::SensorDataQoS());
-
-    // 读取场地尺寸配置
-    try {
-        cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
-        if (fs.isOpened()) {
-            fs["field_width"] >> field_width_;
-            fs["field_height"] >> field_height_;
-            fs.release();
-        }
-    } catch (const cv::Exception& e) {
-        RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
-    }
 
     TDT_INFO("Load radar resolve node success!");
 }

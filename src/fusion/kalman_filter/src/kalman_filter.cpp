@@ -45,14 +45,14 @@ KalmanFilter::KalmanFilter(const rclcpp::NodeOptions& node_options)
 
     // 读取场地尺寸配置
     try {
-        cv::FileStorage fs("./config/params/field_params.yaml", cv::FileStorage::READ);
+        cv::FileStorage fs("./config/radar_config.yaml", cv::FileStorage::READ);
         if (fs.isOpened()) {
             fs["field_width"] >> field_width_;
             fs["field_height"] >> field_height_;
             fs.release();
         }
     } catch (const cv::Exception& e) {
-        RCLCPP_WARN(this->get_logger(), "Failed to read field_params.yaml, use defaults: %s", e.what());
+        RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use defaults: %s", e.what());
     }
 }
 

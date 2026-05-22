@@ -52,6 +52,11 @@ namespace tdt_radar
         float   z_min_ = -0.187180f;
         float   z_max_ = 1.969253f;
         int     no_data_ = 255;
+
+        // 透视变换参考点（从 radar_config.yaml 读取）
+        float   ref_x_[4];
+        float   ref_y_[4];
+        float   armor_height_ = 0.15f;
     };
 }
 #endif //RADAR_UTILS_H
