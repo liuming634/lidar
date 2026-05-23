@@ -180,8 +180,8 @@ void mousecallback(int event, int x, int y, int flags, void* userdata)
 
             } while (temp_key != 'n');
 
-            x *= 1.3333333333 * 2;
-            y *= 1.3333333333 * 2;
+            x = x * 1440 / 1536;
+            y = y * 1080 / 1125;
             std::cout << "x:" << x << " y:" << y << std::endl;
             pick_points.push_back(cv::Point2f(x, y));
         }

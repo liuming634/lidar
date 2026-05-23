@@ -9,6 +9,11 @@
 #     （因为它们会被 calibrate 节点写入）
 #   - 模型路径保留在 detect_params.yaml
 #   - map.yaml 用于 nav2 map_server（独立格式）
+#
+# 外参标定命令（ROS2 节点，选5个场地特征点 → solvePnP）：
+#   ros2 launch tdt_vision calibrate_radar.launch.py
+#   操作：按 Enter 进入标定 → 鼠标左键选点 → WASD 微调 → 按 n 确认
+#   选完5个点自动解算，结果写入 config/out_matrix.yaml
 # ============================================================
 
 # ============================================================
