@@ -37,6 +37,12 @@ public:
 
         // 连续采集模式
         MV_CC_SetEnumValue(handle_, "TriggerMode", 0);
+        MV_CC_SetEnumValue(handle_, "PixelFormat", PixelType_Gvsp_BGR8_Packed);
+        // 颜色校正：开启自动白平衡
+        MV_CC_SetEnumValue(handle_, "BalanceWhiteAuto", 2);    // 2=连续自动
+        MV_CC_SetEnumValue(handle_, "ExposureAuto", 0);         // 0=关闭自动曝光（保持手动）
+        MV_CC_SetFloatValue(handle_, "ExposureTime", 8000.0f);  // 曝光时间(微秒)
+        MV_CC_SetFloatValue(handle_, "Gain", 10.0f);            // 增益
         // 开始取流
         if (MV_CC_StartGrabbing(handle_) != MV_OK) {
             RCLCPP_ERROR(get_logger(), "开始取流失败");
@@ -63,6 +69,17 @@ public:
     }
 
 private:
+    const char* pixelTypeName(MvGvspPixelType type) {
+        if (type == PixelType_Gvsp_BayerRG8) return "BayerRG8";
+        if (type == PixelType_Gvsp_BayerGB8) return "BayerGB8";
+        if (type == PixelType_Gvsp_BayerGR8) return "BayerGR8";
+        if (type == PixelType_Gvsp_BayerBG8) return "BayerBG8";
+        if (type == PixelType_Gvsp_RGB8_Packed) return "RGB8_Packed";
+        if (type == PixelType_Gvsp_BGR8_Packed) return "BGR8_Packed";
+        if (type == PixelType_Gvsp_Mono8) return "Mono8";
+        return "Unknown";
+    }
+
     void grab_and_publish() {
         if (!handle_) return;
 
@@ -72,6 +89,9 @@ private:
             RCLCPP_WARN(get_logger(), "取图超时");
             return;
         }
+
+        RCLCPP_INFO(get_logger(), "Pixel format: %s",
+                    pixelTypeName(frame.stFrameInfo.enPixelType));
 
         auto msg = sensor_msgs::msg::Image();
         msg.header.stamp = now();
@@ -83,21 +103,33 @@ private:
         msg.encoding = "bgr8";
 
         // 判断是否需要格式转换
-        if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerRG8 ||
-            frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerGB8 ||
-            frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerGR8 ||
-            frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerBG8) {
-            // Bayer → BGR
+        cv::Mat bgr_frame;
+        if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerRG8) {
             cv::Mat bayer(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC1,
                          (uint8_t*)frame.pBufAddr);
-            cv::Mat bgr;
-            cv::cvtColor(bayer, bgr, cv::COLOR_BayerRG2BGR);
-            msg.data.assign(bgr.data, bgr.data + bgr.total() * 3);
+            cv::cvtColor(bayer, bgr_frame, cv::COLOR_BayerRG2BGR);
+        } else if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerGB8) {
+            cv::Mat bayer(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC1,
+                         (uint8_t*)frame.pBufAddr);
+            cv::cvtColor(bayer, bgr_frame, cv::COLOR_BayerGB2BGR);
+        } else if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerGR8) {
+            cv::Mat bayer(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC1,
+                         (uint8_t*)frame.pBufAddr);
+            cv::cvtColor(bayer, bgr_frame, cv::COLOR_BayerGR2BGR);
+        } else if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_BayerBG8) {
+            cv::Mat bayer(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC1,
+                         (uint8_t*)frame.pBufAddr);
+            cv::cvtColor(bayer, bgr_frame, cv::COLOR_BayerBG2BGR);
+        } else if (frame.stFrameInfo.enPixelType == PixelType_Gvsp_RGB8_Packed) {
+            cv::Mat rgb(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC3,
+                        (uint8_t*)frame.pBufAddr);
+            cv::cvtColor(rgb, bgr_frame, cv::COLOR_RGB2BGR);
         } else {
-            msg.data.assign(
-                (uint8_t*)frame.pBufAddr,
-                (uint8_t*)frame.pBufAddr + frame.stFrameInfo.nFrameLen);
+            // BGR8_Packed 或其他格式，直接复制
+            bgr_frame = cv::Mat(frame.stFrameInfo.nHeight, frame.stFrameInfo.nWidth, CV_8UC3,
+                               (uint8_t*)frame.pBufAddr).clone();
         }
+        msg.data.assign(bgr_frame.data, bgr_frame.data + bgr_frame.total() * 3);
 
         pub_->publish(msg);
         MV_CC_FreeImageBuffer(handle_, &frame);

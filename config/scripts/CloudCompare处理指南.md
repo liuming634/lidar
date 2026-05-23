@@ -98,30 +98,31 @@ plt.show()
 
 ---
 
-## ✂️ 附：CloudCompare 裁剪 PCD
+## ✂️ 附：CloudCompare 查看坐标范围 + 裁剪 PCD
 
-在做高程图之前，通常需要先把点云裁剪到场地范围。
+### 查看点云坐标范围
 
-### 方法一：用 Crop 工具裁剪
+1. 导入 PCD 后，**单击选中**左侧 DB Tree 里的点云
+2. 按 **F8** 打开 Properties 面板（已打开则跳过）
+3. 在 Properties 面板里找到 **`Bounding box`** 信息，显示 x/y/z 的 min 和 max
+4. 这就是当前点云的范围，记下来填入 `radar_config.yaml` 的 `crop`
 
-1. 导入点云后，选中该点云
-2. 菜单 `Tools` → `Segmentation` → **`Crop`**
-3. 在弹出的窗口中勾选要裁剪的维度（x / y / z），填入场地范围：
+### 裁剪到场地范围
+
+1. 选中点云 → `Tools` → `Segmentation` → **`Crop`**
+2. 在弹出的对话框里填入场地边界，比如：
    ```
-   x: 5.0 ~ 30.0
-   y: -10.0 ~ 8.0
-   z: 0.0 ~ 7.0
+   x: min = 5.0    max = 30.0
+   y: min = -10.0  max = 8.0
+   z: min = 0.0    max = 7.0
    ```
-4. 点击 **`Crop`** 确认，框外的点即被删除
-5. 左侧 DB Tree 中右键裁剪后的点云 → `Save as` → 选择 **`.pcd`** 格式保存
+3. 点击 **`Crop`** 或 **`OK`**
+4. 左侧 DB Tree 会出现裁剪后的点云（名字带 `.cropped`）
+5. 右键 → `Save as` → 选 **`.pcd`** 保存
 
-### 方法二：用 Box 工具裁剪（可视化选择）
+### 然后用裁剪后的点云做高程图
 
-1. 导入点云
-2. 顶部工具栏点击 **`Box`** 图标（或 `Tools` → `Segmentation` → `Box`）
-3. 在视窗中拖出一个立方体框住场地区域
-4. 按住 **Shift** 键拖拽框的边或面微调大小
-5. 在 DB Tree 中选中裁剪后的点云 → 右键 `Save as` → `.pcd`
+裁剪完 → 再按上面的 `Rasterize` 流程生成 GeoTIFF，这样高程图的像素范围就和场地尺寸对应了。
 
 ### 裁剪后生成高程图
 

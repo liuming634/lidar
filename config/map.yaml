@@ -1,4 +1,4 @@
-image: 2_elevation_gray256.png
+image: elevation/2_elevation_gray256.png
 mode: raw
 resolution: 0.009602
 origin: [0.0, 0.0, 0.0]

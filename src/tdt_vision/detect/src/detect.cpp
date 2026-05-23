@@ -166,9 +166,23 @@ void Detect::callback(const std::shared_ptr<sensor_msgs::msg::Image> msg)
     auto result = yolo->forward(image);
     if (result.size() == 0) {
         RCLCPP_INFO(this->get_logger(), "No Car!");
+        cv::Mat final_img;
+        cv::resize(img, final_img, cv::Size(1536, 1125));
+        cv::imshow("detect", final_img);
+        auto early_key = cv::waitKey(1);
+        if (early_key == 'q' || early_key == 27) {
+            cv::destroyWindow("detect");
+        }
         return;
     } else if (result.size() > MAX_CARS) {
         RCLCPP_INFO(this->get_logger(), "Too Many Car!");
+        cv::Mat final_img;
+        cv::resize(img, final_img, cv::Size(1536, 1125));
+        cv::imshow("detect", final_img);
+        auto early_key = cv::waitKey(1);
+        if (early_key == 'q' || early_key == 27) {
+            cv::destroyWindow("detect");
+        }
         return;
     }
 
@@ -351,6 +365,9 @@ void Detect::callback(const std::shared_ptr<sensor_msgs::msg::Image> msg)
     auto key = cv::waitKey(1);
     if (key == 'r') {
         debug = !debug;
+    }
+    if (key == 'q' || key == 27) {  // q 或 ESC 关闭窗口
+        cv::destroyWindow("detect");
     }
 }
 }  // namespace tdt_radar
