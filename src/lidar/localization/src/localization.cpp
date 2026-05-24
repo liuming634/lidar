@@ -159,6 +159,7 @@ private:
         boost::shared_ptr<pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ>> gicp(new pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ>());
         transform = align(gicp, target_cloud_, source_cloud);
         }
+        // 每帧都发布TF（配准成功后继续发布，保持坐标系可用）
         publishTF(transform);
     }
 

@@ -1,0 +1,24 @@
+# 3_elevation_gray256.png 元数据
+# 由 tiff_to_elevation_png.py 自动生成
+
+source: 3.tiff
+output: 3_elevation_gray256.png
+width: 904
+height: 394
+
+# 高度映射参数 (256级灰度)
+elevation_min_m: -1.265726
+elevation_max_m: 2.614000
+pixel_min: 0
+pixel_max: 254
+pixel_nodata: 255
+
+# 灰度含义
+# gray = 0      -> 最高点 (elevation_max_m = 2.614000m)
+# gray = 254    -> 最低点 (elevation_min_m = -1.265726m)
+# gray = 255    -> 无数据区域
+
+# 高度计算公式
+# height = gray * SCALE + elevation_min_m
+# SCALE = (elevation_max_m - elevation_min_m) / 254 = 0.015275
+formula: "height = gray * 0.015275 + (-1.265726)"

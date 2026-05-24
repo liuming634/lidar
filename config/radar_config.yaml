@@ -19,8 +19,10 @@
 # ============================================================
 # 1. 场地基本尺寸 【换场地必须改】
 # ============================================================
-field_width: 28.0
-field_height: 15.0
+# 根据 field_map.pcd 点云范围计算:
+# X: 0.0 ~ 9.049m, Y: -2.341 ~ 1.601m
+field_width: 9.049
+field_height: 3.942
 
 # ============================================================
 # 2. 透视变换参考点 (parser::get_2d 使用) 【换场地可能需要改】
@@ -29,24 +31,24 @@ field_height: 15.0
 # ============================================================
 perspective:
   armor_height: 0.15
-  ref1: { x: 12.0, y: -6.0 }
-  ref2: { x: 16.0, y: -6.0 }
-  ref3: { x: 16.0, y: -8.0 }
-  ref4: { x: 12.0, y: -8.0 }
+  ref1: { x: 4.5, y: 1.2 }
+  ref2: { x: 6.2, y: 1.4 }
+  ref3: { x: 4.1, y: -0.6 }
+  ref4: { x: 2.4, y: -0.8 }
 
 # ============================================================
 # 3. 高程图 【换场地必须改】
 # ============================================================
 elevation:
-  image: "config/elevation/2_elevation_gray256.png"
-  z_min: -0.187180
-  z_max: 1.969253
+  image: "config/elevation/3_elevation_gray256.png"
+  z_min: -1.265726
+  z_max: 2.614000
   no_data: 255
 
 # ============================================================
 # 4. 小地图（resolve / debug_map 可视化用）【换场地可能需要改】
 # ============================================================
-field_map: "config/elevation/2_elevation_gray256.png"
+field_map: "config/elevation/3_elevation_gray256.png"
 display_scale: 25
 
 # ============================================================
@@ -55,7 +57,7 @@ display_scale: 25
 #    调用 solvePnP 解算相机外参
 # ============================================================
 calibrate_points:
-  self_fortress: { x: 5.471, y: -7.5, z: 0.0 }
+  self_fortress: { x: 4.116, y: 1.122, z: 2.428 }
   self_tower:    { x: 10.936, y: -11.161, z: 0.868 }
   enemy_base:    { x: 25.49, y: -7.5, z: 1.24524 }
   enemy_tower:   { x: 16.925, y: -3.625, z: 1.745 }
@@ -65,13 +67,13 @@ calibrate_points:
 # 6. GICP 配准 (localization 节点) 【换场地必须改】
 # ============================================================
 gicp:
-  pcd_path: "config/RM2025.pcd"      # 【换场地必须改】
+  pcd_path: "rosbag/field_map/field_map.pcd"  # 【换场地必须改】
   crop:                               # 【换场地必须改】
-    x_min: 5.0
-    x_max: 30.0
-    y_min: -10.0
-    y_max: 8.0
-    z_max: 7.0
+    x_min: 0.0
+    x_max: 9.1
+    y_min: -2.4
+    y_max: 1.7
+    z_max: 3.0
   voxel_leaf_size: 0.1               # 算法参数，一般不用动
   fitness_threshold: 0.2
   accumulate_frames: 20
@@ -81,19 +83,14 @@ gicp:
 # 7. 动态点云 (dynamic_cloud 节点) 【换场地必须改】
 # ============================================================
 dynamic:
-  pcd_path: "config/RM2025.pcd"      # 【换场地必须改】
+  pcd_path: "rosbag/field_map/field_map.pcd"  # 【换场地必须改】
   kdtree_threshold: 0.1              # 算法参数，一般不用动
   accumulate_frames: 3               # 算法参数，一般不用动
   crop:                               # 【换场地必须改】
-    x_min: 3.0
-    x_max: 28.0
-    y_min: 0.0
-    y_max: 15.0
+    x_min: 0.0
+    x_max: 9.1
+    y_min: -2.4
+    y_max: 1.7
     z_min: 0.0
     z_max: 1.4
-  exclude_zones:                     # 【换场地可能需要改】
-    - name: "right_bottom_corner"
-      x_min: 25.0
-      x_max: 28.0
-      y_min: 0.0
-      y_max: 5.0
+  exclude_zones: []                   # 新场地暂无排除区域

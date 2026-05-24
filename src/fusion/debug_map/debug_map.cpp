@@ -47,6 +47,9 @@ public:
             RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use default: %s", e.what());
         }
         map = cv::imread(map_path);
+        // 创建定时器，每30ms显示一次地图
+        timer_ = this->create_wall_timer(std::chrono::milliseconds(30),
+            [this]() { this->show_map(); });
         match_info_sub =
             this->create_subscription<vision_interface::msg::MatchInfo>(
                 "/match_info", 10,
@@ -72,7 +75,13 @@ public:
             RCLCPP_WARN(this->get_logger(), "Failed to read radar_config.yaml, use defaults: %s", e.what());
         }
         if (display_scale > 0) {
-            cv::resize(map, map, cv::Size((int)(field_width_ * display_scale), (int)(field_height_ * display_scale)));
+            int target_w = (int)(field_width_ * display_scale);
+            int target_h = (int)(field_height_ * display_scale);
+            // 长宽都不超过1000像素的情况下尽可能大
+            float scale = std::min(1000.0f / target_w, 1000.0f / target_h);
+            target_w = (int)(target_w * scale);
+            target_h = (int)(target_h * scale);
+            cv::resize(map, map, cv::Size(target_w, target_h));
         }
     }
     void save_match_info(
@@ -86,6 +95,9 @@ public:
     // 在小地图上绘制蓝/红方车辆位置（带编号），0.5秒内更新有效
     void show_map()
     {
+        if (map.empty()) {
+            return;  // 没有地图时不显示
+        }
         auto   now_time = std::chrono::system_clock::now();
         double time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           now_time.time_since_epoch())
@@ -289,6 +301,7 @@ public:
         radar2sentry_pub;
     rclcpp::Subscription<vision_interface::msg::MatchInfo>::SharedPtr
         match_info_sub;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     double blue_time[6];
     double red_time[6];
