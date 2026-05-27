@@ -131,6 +131,15 @@ public:
                             cv::Scalar(255, 255, 255));
             }
         }
+        // 绘制无标签目标（雷达检测但无相机标签）
+        for (size_t i = 0; i < unlabeled_points.size(); i++) {
+            if (time - unlabeled_update[i] < 0.5) {
+                cv::Point2f point = cv::Point2f(
+                    clone_map.cols * unlabeled_points[i].x / field_width_,
+                    clone_map.rows * (field_height_ - unlabeled_points[i].y) / field_height_);
+                cv::circle(clone_map, point, 5, cv::Scalar(128, 128, 128), -1);
+            }
+        }
         cv::imshow("map", clone_map);
         cv::waitKey(1);
     }
@@ -190,6 +199,14 @@ public:
                 red_time[i] = time;
                 red_update[i] = time;
             }
+        }
+        // 读取无标签目标（纯雷达检测）
+        unlabeled_points.clear();
+        unlabeled_update.clear();
+        for (size_t i = 0; i < msg->unlabeled_x.size(); i++) {
+            unlabeled_points.push_back(
+                cv::Point2f(msg->unlabeled_x[i], msg->unlabeled_y[i]));
+            unlabeled_update.push_back(time);
         }
         show_map();
         vision_interface::msg::RadarWarn radar_warn;
@@ -317,6 +334,8 @@ public:
 
     cv::Point2f blue_point[6];
     cv::Point2f red_point[6];
+    std::vector<cv::Point2f> unlabeled_points;
+    std::vector<double>      unlabeled_update;
 
     vision_interface::msg::MatchInfo match_info;
     cv::Mat                          map;

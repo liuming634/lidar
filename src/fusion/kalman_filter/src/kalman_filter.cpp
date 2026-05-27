@@ -193,17 +193,18 @@ void KalmanFilter::callback(
                          .count();
     vision_interface::msg::DetectResult detect_msg;
     for (auto kf : KFs) {
-        if (kf.detect_history.size() == 0)
-            continue;
-        if (kf.get_color() == 0) {
+        if (kf.detect_history.size() > 0 && kf.get_color() == 0) {
             int number = kf.get_number();
             detect_msg.blue_x[number] = kf.predict_point.x;
             detect_msg.blue_y[number] = kf.predict_point.y;
-        }
-        if (kf.get_color() == 2) {
+        } else if (kf.detect_history.size() > 0 && kf.get_color() == 2) {
             int number = kf.get_number();
             detect_msg.red_x[number] = kf.predict_point.x;
             detect_msg.red_y[number] = kf.predict_point.y;
+        } else {
+            // 没有相机标签：作为无标签目标发布
+            detect_msg.unlabeled_x.push_back(kf.predict_point.x);
+            detect_msg.unlabeled_y.push_back(kf.predict_point.y);
         }
     }
     if (match_info.self_color == 0) {
